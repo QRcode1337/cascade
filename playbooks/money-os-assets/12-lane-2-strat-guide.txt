@@ -1,0 +1,65 @@
+Strategy Guide: Lane 2 (Outdated Sites) & Lane 3 (Restaurants)
+🎯 Lane 2: The "Website Upgrade" (High Value)
+Target Profile: Dental, Med Spa, Home Services, Legal, Accounting. The Situation: They have a website. It looks like it was built in 2015. It has a "Contact Us" form that goes to a spam folder. The Pitch: "Don't rebuild your website ($5k). Hire a Digital Employee that lives on your website ($1k)."
+1. Dental & Med Spa Strategy
+Pain Point: No-shows, receptionist burnout, after-hours leads.
+The "Product": Patient Intake & Protection Suite.
+The Hook: "Your website is a brochure. I want to turn it into a 24/7 receptionist that qualifies patients and ensures they show up."
+What you build (The Stack):
+Typebot: "New Patient Intake" (Asks insurance type, reason for visit).
+Make.com: Sends data to Google Sheets (HIPAA compliant considerations needed for real deployment, start with simple notification).
+Twilio: 24h & 2h SMS Reminders.
+Key Phrase: "Reduce no-shows by 40%."
+2. Home Services (Plumbers, HVAC, Landscapers)
+Pain Point: Speed-to-Lead. They are under a sink or on a roof. They miss calls. The customer calls the next guy on Google.
+The "Product": The Missed Call Catch-Net.
+The Hook: "You miss 3 calls a week. That's $1,500 in lost jobs. I can fix that automatically."
+What you build (The Stack):
+Make.com + Twilio: If a call is missed -> Wait 30 seconds -> Send SMS: "Hey, sorry I missed you. I'm on a job. How can I help?"
+Typebot: "Instant Quote Calculator" on the website.
+Key Phrase: "Never lose a lead to voicemail again."
+3. Professional Services (Legal / Accounting)
+Pain Point: Chasing Documents and "Tire Kickers" (people with no budget).
+The "Product": The Gatekeeper Bot.
+The Hook: "Stop spending 20 minutes on the phone just to find out they can't afford you."
+What you build (The Stack):
+Typebot: Pre-consultation questionnaire (Budget, Legal Issue Type, Timeline).
+Automation: If qualified -> Send Calendly link. If not -> Send "Resources" email.
+Key Phrase: "Automate your client intake."
+🍔 Lane 3: The "High-Volume" Restaurant Pivot
+Target Profile: Busy restaurants (Koite Grill, JC Crab House). The Situation: Low margins, high chaos. They do NOT want "Consulting." They do not want a 90-minute audit. The Pivot: Treat this as a Product, not a Service.
+The Offer: "The Reputation & Reservation Engine"
+Don't sell "AI." Sell Google Reviews and Table Fills.
+The Setup (Fixed Price Package: $500):
+QR Codes on Tables: "Scan to enter monthly draw / Get dessert."
+The Flow (Typebot):
+Customer Scans.
+Bot asks: "How was the food? (1-5 stars)"
+If 5 Stars: "Awesome! Click here to post that on Google." (Redirect to Google Maps Review Link).
+If 1-3 Stars: "Oh no! Tell us what went wrong so we can fix it." (Sends email to Manager, blocks the bad review from going public).
+The Asset: You are building them an Email/SMS List of their customers.
+The Upsell: "I can send a text blast to this list on slow Tuesdays to fill tables."
+Why this works for Restaurants:
+It's tangible.
+It protects their reputation.
+It builds an asset (customer list) they currently don't have.
+It requires ZERO staff training.
+🚀 Summary of Attack Plan
+Target Group
+The Strategy
+The Core Product
+The Pricing Model
+Target 1: No Website
+"I built it already."
+Digital Receptionist (Typebot Hosted)
+$500 Flat (One-time)
+Target 2: Outdated Sites
+"Hire a Digital Employee."
+The Website Overlay (Intake + Reminders)
+$1k Setup + $300/mo
+Target 3: Restaurants
+"Get 5-Star Reviews."
+QR Review Filter + List Builder
+$500 Setup + $100/mo
+
+

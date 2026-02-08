@@ -1,0 +1,384 @@
+{
+  "templates": [
+    {
+      "name": "Lead Qualification Chatbot - Generic Business",
+      "description": "Universal lead qualification flow for any small business",
+      "flow": {
+        "blocks": [
+          {
+            "id": "block_1",
+            "type": "text",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "Hi there! 👋 I'm the AI assistant for [YOUR BUSINESS NAME]."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "block_2",
+            "type": "text",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "I can help you book a free consultation in under 60 seconds."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "block_3",
+            "type": "text",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "Ready to get started?"
+                    }
+                  ]
+                }
+              ],
+              "buttons": [
+                {
+                  "label": "Yes, let's do it!",
+                  "value": "yes"
+                },
+                {
+                  "label": "Just browsing",
+                  "value": "browsing"
+                }
+              ]
+            }
+          },
+          {
+            "id": "block_4",
+            "type": "text_input",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "Great! What's your name?"
+                    }
+                  ]
+                }
+              ],
+              "variableName": "name",
+              "placeholder": "John Smith"
+            }
+          },
+          {
+            "id": "block_5",
+            "type": "email_input",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "Thanks {{name}}! What's the best email to reach you?"
+                    }
+                  ]
+                }
+              ],
+              "variableName": "email",
+              "placeholder": "john@example.com"
+            }
+          },
+          {
+            "id": "block_6",
+            "type": "phone_input",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "And your phone number? (We'll send you a confirmation text)"
+                    }
+                  ]
+                }
+              ],
+              "variableName": "phone",
+              "placeholder": "+1 555-123-4567"
+            }
+          },
+          {
+            "id": "block_7",
+            "type": "choice_input",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "How can we help you today?"
+                    }
+                  ]
+                }
+              ],
+              "variableName": "intent",
+              "buttons": [
+                {
+                  "label": "Book a consultation",
+                  "value": "consultation"
+                },
+                {
+                  "label": "Get a quote",
+                  "value": "quote"
+                },
+                {
+                  "label": "Ask a question",
+                  "value": "question"
+                },
+                {
+                  "label": "Just browsing",
+                  "value": "browsing"
+                }
+              ]
+            }
+          },
+          {
+            "id": "block_8",
+            "type": "choice_input",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "When are you looking to get started?"
+                    }
+                  ]
+                }
+              ],
+              "variableName": "timeline",
+              "buttons": [
+                {
+                  "label": "This week",
+                  "value": "this_week"
+                },
+                {
+                  "label": "This month",
+                  "value": "this_month"
+                },
+                {
+                  "label": "Next 3 months",
+                  "value": "3_months"
+                },
+                {
+                  "label": "Just researching",
+                  "value": "researching"
+                }
+              ]
+            }
+          },
+          {
+            "id": "block_9",
+            "type": "text",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "Perfect! Let's get you scheduled. Pick a time that works for you:"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "block_10",
+            "type": "calcom",
+            "content": {
+              "url": "YOUR_CAL_COM_LINK_HERE",
+              "variableName": "booking_time"
+            }
+          },
+          {
+            "id": "block_11",
+            "type": "text",
+            "content": {
+              "richText": [
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "You're all set, {{name}}! 🎉"
+                    }
+                  ]
+                },
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": ""
+                    }
+                  ]
+                },
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "You'll receive a confirmation email at {{email}} and a text reminder 24 hours before."
+                    }
+                  ]
+                },
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": ""
+                    }
+                  ]
+                },
+                {
+                  "type": "p",
+                  "children": [
+                    {
+                      "text": "Looking forward to speaking with you!"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "customization_notes": "Replace [YOUR BUSINESS NAME] and YOUR_CAL_COM_LINK_HERE with actual values"
+    },
+    {
+      "name": "Lead Qualification Chatbot - Real Estate",
+      "description": "Real estate agent lead qualification flow",
+      "qualification_questions": [
+        {
+          "question": "What are you looking for?",
+          "options": [
+            "Buying a home",
+            "Selling a home",
+            "Investment property",
+            "Just exploring"
+          ]
+        },
+        {
+          "question": "What's your budget range?",
+          "options": [
+            "Under $300K",
+            "$300K - $500K",
+            "$500K - $750K",
+            "$750K+"
+          ]
+        },
+        {
+          "question": "When are you looking to buy/sell?",
+          "options": [
+            "Within 30 days",
+            "1-3 months",
+            "3-6 months",
+            "Just starting research"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Lead Qualification Chatbot - Dental Practice",
+      "description": "Dental practice patient intake flow",
+      "qualification_questions": [
+        {
+          "question": "What brings you in?",
+          "options": [
+            "Routine checkup/cleaning",
+            "Dental emergency",
+            "Cosmetic procedure",
+            "I'm a new patient"
+          ]
+        },
+        {
+          "question": "Do you have dental insurance?",
+          "options": [
+            "Yes (I have insurance)",
+            "No (I'll pay out of pocket)",
+            "Not sure"
+          ]
+        },
+        {
+          "question": "When would you like to schedule?",
+          "options": [
+            "This week",
+            "Next 2 weeks",
+            "Next month",
+            "Just getting information"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FAQ Auto-Responder - Generic",
+      "description": "Simple FAQ chatbot template",
+      "faqs": [
+        {
+          "question": "What are your hours?",
+          "answer": "We're open Monday-Friday 9am-5pm, Saturday 10am-2pm. Closed Sundays."
+        },
+        {
+          "question": "How much do your services cost?",
+          "answer": "Our pricing varies based on your needs. Most projects start at $[X]. Book a free consultation to get a custom quote: [CALENDAR_LINK]"
+        },
+        {
+          "question": "Do you offer [specific service]?",
+          "answer": "Yes! We specialize in [service]. Want to learn more? Book a call here: [CALENDAR_LINK]"
+        },
+        {
+          "question": "How long does [process] take?",
+          "answer": "Typically [timeframe], depending on complexity. During your consultation, we'll give you a detailed timeline."
+        },
+        {
+          "question": "Do you serve [location]?",
+          "answer": "Yes, we serve [service area]. We also work with clients nationwide remotely."
+        },
+        {
+          "question": "How do I get started?",
+          "answer": "Easy! Just book a free consultation here: [CALENDAR_LINK]. We'll discuss your needs and create a custom plan."
+        }
+      ]
+    }
+  ],
+  "implementation_instructions": {
+    "typebot_import": [
+      "1. Go to https://typebot.io and sign up/login",
+      "2. Click 'Create a typebot'",
+      "3. Click 'Start from scratch' or 'Import'",
+      "4. Use the flow structure above to manually build blocks",
+      "5. OR copy individual block configurations from templates",
+      "6. Customize business name, questions, and Cal.com link",
+      "7. Test the flow before sharing"
+    ],
+    "customization_checklist": [
+      "[ ] Replace [YOUR BUSINESS NAME] with actual business name",
+      "[ ] Update YOUR_CAL_COM_LINK_HERE with real Cal.com URL",
+      "[ ] Customize qualifying questions for industry",
+      "[ ] Add business logo to theme settings",
+      "[ ] Set brand colors in theme",
+      "[ ] Update welcome message tone/style",
+      "[ ] Add webhook URL (from Make.com) in settings",
+      "[ ] Test with sample data",
+      "[ ] Get embed code for website"
+    ]
+  }
+}

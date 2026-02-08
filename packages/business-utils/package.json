@@ -1,0 +1,45 @@
+{
+  "name": "@cascade/business-utils",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Business automation utilities for prospect enrichment and lead management",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./enrich-prospects": {
+      "types": "./dist/enrich-prospects.d.ts",
+      "import": "./dist/enrich-prospects.mjs",
+      "require": "./dist/enrich-prospects.js"
+    },
+    "./supabase": {
+      "types": "./dist/supabase.d.ts",
+      "import": "./dist/supabase.mjs",
+      "require": "./dist/supabase.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/enrich-prospects.ts src/supabase.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts src/enrich-prospects.ts src/supabase.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.3.42",
+    "@supabase/supabase-js": "^2.39.0",
+    "csv-parse": "^5.5.3",
+    "csv-stringify": "^6.4.5"
+  },
+  "devDependencies": {
+    "@cascade/typescript-config": "workspace:*",
+    "@types/node": "^20.10.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@cascade/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "files": ["*.js"],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0"
+  }
+}

@@ -1,0 +1,760 @@
+Business Name: Ohio Landscaping Lawn Care Co.
+Website URL: https://www.ohiolandscapinglawncare.com/
+Address: Cuyahoga County, OH (specific address not visible)
+Phone Number: Need to find
+Business Type/Category: Landscaping/Lawn Care
+Website Issues: 
+- Outdated design with basic layout
+- Poor navigation structure
+- Limited mobile optimization
+- Basic color scheme and typography
+- No clear call-to-action buttons
+- Minimal SEO optimization visible
+- Simple contact form without modern features
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Greenleaf Landscaping
+Website URL: https://www.greenleaflandscapeinc.com/home/
+Address: Greenwood, Central Indiana (specific address not visible)
+Phone Number: Need to find
+Business Type/Category: Landscaping/Lawn Care
+Website Issues:
+- Very basic, outdated design
+- Poor image optimization (visible "_thm.JPG" in URLs)
+- Repetitive content structure
+- No modern web design elements
+- Limited navigation options
+- Poor SEO structure
+- No clear contact information visible on homepage
+- Basic slideshow implementation
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Wharton Roofing LLC
+Website URL: https://wharton-roofing.com/
+Address: Wharton, Texas (serves Wharton, Colorado, Matagorda, Lavaca, Jackson, Fayetteville, & Calhoun counties)
+Phone Number: (979) 534-2014
+Business Type/Category: Roofing Contractor
+Website Issues:
+- Basic WordPress theme with minimal customization
+- Poor mobile responsiveness
+- Limited SEO optimization
+- Basic typography and layout
+- No modern design elements
+- Simple contact form
+- Minimal social media integration
+- Basic image optimization
+Contact Email or Owner's Name: whartonroofingllc@gmail.com
+---
+
+
+Business Name: American Plumbing Contractors Inc
+Website URL: https://americanplumbingcontractors.com/
+Address: Jacksonville, FL
+Phone Number: 904.745.1693
+Business Type/Category: Plumbing Contractor
+Website Issues:
+- Extremely basic website design
+- Very minimal content and pages
+- Poor navigation structure
+- No modern web design elements
+- Limited mobile optimization
+- Basic contact information only
+- No online booking or modern features
+- Minimal SEO optimization
+- Very simple layout and typography
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Tender Lawn Care
+Website URL: https://mytenderlawncare.com/
+Address: Michigan (specific location not visible)
+Phone Number: Need to find
+Business Type/Category: Lawn Care/Landscaping
+Website Issues:
+- Outdated WordPress design
+- Basic layout and typography
+- Poor image optimization
+- Limited mobile responsiveness
+- Minimal SEO optimization
+- Basic navigation structure
+- No modern web design elements
+- Simple contact options
+- Dated visual design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: MJS Landscaping Services, LLC
+Website URL: https://www.mjslandscapingservices.com/
+Address: Waukesha, WI 53188
+Phone Number: 262-253 (incomplete)
+Business Type/Category: Landscaping Services
+Website Issues:
+- Extremely minimal homepage content
+- Very basic design and layout
+- Poor content structure
+- Limited navigation options
+- Minimal SEO optimization
+- Basic typography and styling
+- No modern web design elements
+- Very simple contact information
+- Lacks comprehensive service information on homepage
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Skywalker Roofing Company
+Website URL: https://skywalkerroofingnc.com/
+Address: Multiple locations in NC and VA (Greensboro, Winston-Salem, Roanoke, Wilmington, Danville, Raleigh, Stokesdale)
+Phone Number: (336) 627-5596
+Business Type/Category: Roofing Contractor
+Website Issues:
+- Outdated design with poor image loading (ajax-loader.gif placeholders)
+- Repetitive content sections
+- Poor image optimization and loading
+- Basic layout structure
+- Limited modern web design elements
+- Slow loading performance
+- Basic typography and styling
+- Needs better mobile optimization
+Contact Email or Owner's Name: Luke Wilson (Owner)
+---
+
+
+Business Name: Hetter Heating & Cooling
+Website URL: https://www.hetterheating.com/
+Address: Columbus, Ohio
+Phone Number: Need to find
+Business Type/Category: HVAC Contractor
+Website Issues:
+- Outdated design with basic layout
+- Poor typography and styling
+- Limited mobile optimization
+- Basic navigation structure
+- Minimal modern web design elements
+- Simple contact forms
+- Basic image optimization
+- Needs better SEO structure
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Johns Plumbing Inc
+Website URL: https://www.johnsplumbinginc.com/
+Address: Chicago, IL
+Phone Number: 773-286-9030
+Business Type/Category: Plumbing Contractor
+Website Issues:
+- Very basic website design
+- Poor image optimization (using nebula.wsimg.com CDN with poor compression)
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Gardens of Babylon Landscapes
+Website URL: https://gardensofbabylon.com/
+Address: Nashville, TN (near downtown Farmers' Market)
+Phone Number: Need to find
+Business Type/Category: Landscaping Company/Garden Center
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Needs better image optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Lewis Concrete Contracting, LLC
+Website URL: https://lewisconcretecontractors.com/
+Address: Foley, Alabama (serves Orange Beach, Gulf Shores and southern Alabama)
+Phone Number: Need to find
+Business Type/Category: Concrete Contractor
+Website Issues:
+- Basic WordPress theme with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Poor image optimization
+- Dated visual design
+Contact Email or Owner's Name: Mike Lewis (Owner)
+---
+
+
+Business Name: Meiners Electric
+Website URL: http://meinerselectric.com/
+Address: Louisville, KY (serves 100 mile radius from Greater Louisville Area)
+Phone Number: Need to find
+Business Type/Category: Electrical Contractor
+Website Issues:
+- Very outdated design (appears to be from early 2010s)
+- Poor image optimization and loading
+- Basic WordPress theme with minimal customization
+- Limited mobile optimization
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Dated visual appearance
+- Poor user experience
+Contact Email or Owner's Name: Tim Meiners (President)
+---
+
+
+Business Name: Kennedy Painting
+Website URL: https://www.stlouishousepainting.com/
+Address: St. Louis, MO
+Phone Number: Need to find
+Business Type/Category: Painting Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Sean Kennedy (Owner/Founder)
+---
+
+
+Business Name: Jim's Tree Service, Inc
+Website URL: https://www.jimstreeservicear.com/
+Address: Central Arkansas area (Little Rock, Hot Springs)
+Phone Number: Need to find
+Business Type/Category: Tree Service
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: American Fence Company Inc.
+Website URL: https://www.americanfenceok.com/
+Address: Oklahoma
+Phone Number: Need to find
+Business Type/Category: Fencing Contractor
+Website Issues:
+- Very basic website design
+- Poor image optimization (using hibuwebsites.com CDN)
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Kwiatkowski Masonry
+Website URL: https://www.kmasonry.com/
+Address: Northwest Indiana, Chicago Metropolitan area
+Phone Number: Need to find
+Business Type/Category: Masonry Contractor
+Website Issues:
+- Basic Squarespace template with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: AAA Septic Systems
+Website URL: https://aaasepticsystems.com/
+Address: 4030 MS-471, Brandon, MS 39047
+Phone Number: (601) 829-3444
+Business Type/Category: Septic Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+- Repetitive content structure
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Chris' Paving, LLC
+Website URL: https://www.chrispaving.com/
+Address: New Orleans, LA
+Phone Number: Need to find
+Business Type/Category: Paving Contractor
+Website Issues:
+- Very basic website design
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Legacy Decks
+Website URL: https://www.legacydecks.com/
+Address: Greenville, SC
+Phone Number: (864) 729-4444
+Business Type/Category: Deck Builder/Outdoor Living
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Grunit Pool Design & Construction Services
+Website URL: https://www.grunit.com/
+Address: 4855 Distribution Ct. Unit 2 Orlando, FL 32822
+Phone Number: +1 (888) 390-0194
+Business Type/Category: Pool Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: info@grunit.com
+---
+
+
+Business Name: Arizona Irrigation Company
+Website URL: https://azirrigationco.com/
+Address: Phoenix and Scottsdale, Arizona
+Phone Number: (602) 955-7440
+Business Type/Category: Irrigation Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Tim (Owner)
+---
+
+
+Business Name: All Texas Foundation Repair
+Website URL: http://www.alltexasfoundationrepair.com/
+Address: Texas (specific location not visible)
+Phone Number: Need to find
+Business Type/Category: Foundation Repair Contractor
+Website Issues:
+- Extremely basic website design
+- Very minimal content
+- Poor navigation structure
+- No modern web design elements
+- Limited mobile optimization
+- Basic contact information only
+- No online features or modern functionality
+- Minimal SEO optimization
+- Very simple layout and typography
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Best Window Company of Virginia
+Website URL: https://bestwindowvirginia.com/
+Address: Richmond, Virginia
+Phone Number: Need to find
+Business Type/Category: Window Contractor
+Website Issues:
+- Basic website design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Dan's Siding
+Website URL: https://www.danssiding.com/
+Address: Eastern PA and NJ (Lehigh Valley, Poconos)
+Phone Number: 610-761-2306
+Business Type/Category: Siding Contractor
+Website Issues:
+- Very outdated design (appears to be from early 2000s)
+- Poor image optimization and loading
+- Basic HTML/CSS design with minimal functionality
+- Limited mobile optimization
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Dated visual appearance
+- Poor user experience
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Next Day Gutters
+Website URL: https://nextdaygutters.com/
+Address: Maryland, Virginia, and North Carolina
+Phone Number: Need to find
+Business Type/Category: Gutter Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Iowa Insulation Inc
+Website URL: https://www.iowainsulation.com/
+Address: Davenport, IA (serves 34 states)
+Phone Number: Need to find
+Business Type/Category: Insulation Contractor
+Website Issues:
+- Very basic website design
+- Poor image optimization (using hibuwebsites.com CDN)
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Standard Water Control
+Website URL: https://standardwater.com/
+Address: Minneapolis, MN & Western Wisconsin
+Phone Number: 763-537-4849
+Business Type/Category: Waterproofing Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Service@StandardWater.com
+---
+
+
+Business Name: Wisconsin Chimney Technicians
+Website URL: https://www.wisconsinchimney.com/
+Address: Southeastern Wisconsin (New Berlin, West Bend, Cedarburg, etc.)
+Phone Number: (262) 443-5933
+Business Type/Category: Chimney Contractor
+Website Issues:
+- Basic website design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Georgia Pressure Washers and Roof Cleaning
+Website URL: https://gapressurewashers.com/
+Address: Duluth, Georgia
+Phone Number: Need to find
+Business Type/Category: Pressure Washing Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Alabama's Fencing
+Website URL: https://www.alabamasfencing.com/
+Address: Huntsville, AL (Madison area)
+Phone Number: (256) 364-5035
+Business Type/Category: Fencing Contractor
+Website Issues:
+- Very basic website design
+- Poor image optimization (using hibuwebsites.com CDN)
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: REI Concrete
+Website URL: http://www.reiconcrete.com/
+Address: Nashville, Tennessee (serves Middle TN/Southern KY)
+Phone Number: Need to find
+Business Type/Category: Concrete Contractor
+Website Issues:
+- Very basic website design
+- Poor image optimization and loading
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Kentucky Painting Company
+Website URL: https://www.kentuckypaintingcompany.com/
+Address: Kentucky (specific location not visible)
+Phone Number: Need to find
+Business Type/Category: Painting Contractor
+Website Issues:
+- Very outdated design (appears to be from early 2000s)
+- Poor image optimization and loading
+- Basic HTML/CSS design with minimal functionality
+- Limited mobile optimization
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Dated visual appearance
+- Poor user experience
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: C & L Flooring
+Website URL: https://candlflooring.com/
+Address: Eastern Indiana, Northern Kentucky and Ohio
+Phone Number: Need to find
+Business Type/Category: Flooring Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Service Professor
+Website URL: https://www.serviceprofessor.com/hvac-services/
+Address: West & Southwest Michigan
+Phone Number: Need to find
+Business Type/Category: HVAC Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Beary Landscaping
+Website URL: https://bearylandscaping.com/
+Address: Chicagoland area, Illinois
+Phone Number: Need to find
+Business Type/Category: Landscaping Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Dovetail Roofing
+Website URL: https://dovetailroofing.com/
+Address: Topeka, KS (Northeast Kansas)
+Phone Number: Need to find
+Business Type/Category: Roofing Contractor
+Website Issues:
+- Very basic website design
+- Poor image optimization and loading
+- Minimal content structure
+- Basic typography and layout
+- Limited mobile optimization
+- No modern web design elements
+- Simple navigation
+- Basic contact information display
+- Needs better SEO optimization
+- Dated visual appearance
+Contact Email or Owner's Name: Aaron Becker (Owner)
+---
+
+
+Business Name: Tritz Plumbing Inc
+Website URL: https://www.tritz.com/
+Address: Omaha, NE (Greater Omaha area)
+Phone Number: Need to find
+Business Type/Category: Plumbing Contractor
+Website Issues:
+- Basic website design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Piper Electric
+Website URL: https://piperelectric.com/
+Address: Denver, CO (Front Range)
+Phone Number: Need to find
+Business Type/Category: Electrical Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: Need to find
+---
+
+
+Business Name: Utah Drywall & Repair
+Website URL: https://drywallrepairutah.com/
+Address: Salt Lake, Utah, Davis, Weber Counties
+Phone Number: 801-406-6350
+Business Type/Category: Drywall Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: info@drywallrepairutah.com
+---
+
+
+Business Name: D&L Tile, Inc.
+Website URL: https://dandltile.com/
+Address: 111 Linden Street, Reno, NV 89502
+Phone Number: 775-826-7048
+Business Type/Category: Tile Contractor
+Website Issues:
+- Basic WordPress design with minimal customization
+- Poor mobile optimization
+- Limited modern web design elements
+- Basic typography and layout
+- Simple navigation structure
+- Minimal SEO optimization
+- Basic contact forms
+- Dated visual appearance
+- Needs better user experience design
+Contact Email or Owner's Name: sales@dandltile.com
+---
+

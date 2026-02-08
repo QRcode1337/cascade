@@ -1,0 +1,29 @@
+High-Impact Outreach Scripts (Target 1: No Website)
+📧 Email: The "Pattern Interrupt" (Anti-Spam)
+This email is designed to look like a customer email, not a marketing blast. It is short, direct, and lowercased to feel personal.
+Subject: I couldn't find your menu/website Alternate Subject: Your Google Maps button is broken
+Body:
+Hey [Owner Name],
+I live in [Your Neighborhood] and tried to look up your services/menu on my phone yesterday, but the "Website" button on your Google Maps profile is empty.
+I figured you were just busy, so I spent 20 minutes mocking up a simple mobile page for you.
+It’s basically a "Digital Receptionist" that shows your info and lets people book/order without calling.
+I put the demo here: [LINK TO TYPEBOT]
+I’m not a marketing agency. I’m just a local automation guy. If you want to use this link permanently, let me know and I'll transfer it to you.
+Best,
+[Your Name] Sent from my iPhone
+📞 Phone Script: The "Local Neighbor" Approach
+The goal is NOT to sell. The goal is to get permission to text them the link.
+You: "Hey, is this the owner?" Owner: "Yes, who is this?" You: "Hey, my name is [Your Name]. I’m actually a neighbor, I live over on [Street Name/Area]. I'm not trying to sell you SEO or anything weird."
+(Pause - let them relax)
+You: "I was looking you guys up on Google Maps yesterday, and I noticed your 'Website' button is empty. I know you're busy running the business, but you're probably missing out on a lot of 'easy' customers who just search on their iPhones." Owner: "Yeah, we haven't gotten around to it." You: "Totally get it. Look, I’m a tech guy. I actually built a little demo link for you yesterday just to see if I could fix it. It takes like 2 seconds to look at." You: "Can I text it to this number? You can just click it and see if you like it."
+If Yes: Text the link immediately. If No: "No worries, just wanted to help out the neighborhood. Have a good one."
+🎙️ Audio Script (Voicemail / LinkedIn Voice Note)
+Keep this under 30 seconds. Sound casual, maybe even a little distracted. Do NOT sound like a radio announcer.
+"Hey [Owner Name], it's [Your Name].
+I'm a local over in [Neighborhood]. I was looking at your Google Maps profile just now and realized you don't have a website link listed.
+I actually went ahead and built a little 'Digital Receptionist' link for you guys—it basically just answers questions and takes bookings so you don't have to answer the phone as much.
+I'm going to text the link to this number. Take a look at it on your phone when you have a sec. If you want to keep it, just let me know. Talk soon."
+📱 The "Follow-Up" Text (Send immediately after the call/voicemail)
+Text: "Hey, this is [Your Name] (the neighbor who called). Here is that demo link I built for [Business Name]:
+[LINK]
+It acts like a mobile website. Let me know if you want to keep it live."
