@@ -30,12 +30,12 @@ model User {
 model Agent {
   id           String   @id @default(cuid())
   slug         String   @unique // e.g., "orchestrator", "strategy", "leadgen"
-  name         String   // e.g., "OrchestratorAgent"
+  name         String // e.g., "OrchestratorAgent"
   mission      String   @db.Text
   systemPrompt String?  @db.Text
   playbooks    String[] // playbook asset references
   outputs      String[] // expected output types
-  lane         String?  // lane1, lane2, lane3, or null for all
+  lane         String? // lane1, lane2, lane3, or null for all
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -45,10 +45,10 @@ model Agent {
 model PlaybookTemplate {
   id          String   @id @default(cuid())
   slug        String   @unique // e.g., "audit-methodology"
-  name        String   // e.g., "Audit Methodology"
+  name        String // e.g., "Audit Methodology"
   description String?  @db.Text
   content     String   @db.Text // markdown content
-  category    String   // e.g., "outreach", "audit", "demo"
+  category    String // e.g., "outreach", "audit", "demo"
   agents      String[] // agent slugs that use this
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -61,21 +61,92 @@ model PlaybookTemplate {
 // ============================================
 
 model Workspace {
-  id        String      @id @default(cuid())
-  userId    String
-  name      String
-  slug      String      @unique
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  playbooks Playbook[]
-  runs      Run[]
-  secrets   Secret[]
-  guardrail Guardrail?
-  usageLogs UsageLog[]
-  triggers  Trigger[]
+  id               String            @id @default(cuid())
+  userId           String
+  name             String
+  slug             String            @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playbooks        Playbook[]
+  runs             Run[]
+  secrets          Secret[]
+  guardrail        Guardrail?
+  usageLogs        UsageLog[]
+  triggers         Trigger[]
+  contentPlans     ContentPlan[]
+  contentItems     ContentItem[]
+  contentApprovals ContentApproval[]
 
   @@index([userId])
+}
+
+model ContentPlan {
+  id          String        @id @default(cuid())
+  workspaceId String
+  title       String
+  month       DateTime
+  objective   String?
+  channel     String
+  targetPosts Int           @default(12)
+  notes       String?       @db.Text
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items       ContentItem[]
+
+  @@index([workspaceId, month])
+  @@index([workspaceId, status])
+}
+
+model ContentItem {
+  id          String            @id @default(cuid())
+  workspaceId String
+  planId      String?
+  channel     String
+  objective   String
+  cta         String?
+  assetUrl    String?
+  caption     String?           @db.Text
+  publishDate DateTime?
+  status      ContentStatus     @default(DRAFT)
+  createdBy   String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan        ContentPlan?      @relation(fields: [planId], references: [id], onDelete: SetNull)
+  approvals   ContentApproval[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, publishDate])
+  @@index([planId])
+}
+
+model ContentApproval {
+  id            String        @id @default(cuid())
+  workspaceId   String
+  contentItemId String
+  reviewer      String
+  status        ContentStatus
+  feedback      String?       @db.Text
+  approvedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contentItem   ContentItem   @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([contentItemId])
+}
+
+enum ContentStatus {
+  DRAFT
+  APPROVED
+  SCHEDULED
+  PUBLISHED
 }
 
 model Playbook {
@@ -84,9 +155,9 @@ model Playbook {
   name        String
   description String?
   currentId   String?
-  agentSlug   String?           // Link to Agent registry
-  templateId  String?           // Source template if imported
-  lane        String?           // lane1, lane2, lane3
+  agentSlug   String? // Link to Agent registry
+  templateId  String? // Source template if imported
+  lane        String? // lane1, lane2, lane3
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -116,19 +187,19 @@ model PlaybookVersion {
 // ============================================
 
 model Trigger {
-  id         String      @id @default(cuid())
-  playbookId String
-  type       TriggerType
-  config     Json
-  enabled    Boolean     @default(true)
-  lastFired  DateTime?
-  nextFire   DateTime?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  playbook   Playbook    @relation(fields: [playbookId], references: [id], onDelete: Cascade)
-  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id          String      @id @default(cuid())
+  playbookId  String
+  type        TriggerType
+  config      Json
+  enabled     Boolean     @default(true)
+  lastFired   DateTime?
+  nextFire    DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  playbook    Playbook    @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String
-  runs       Run[]
+  runs        Run[]
 
   @@index([playbookId])
   @@index([type, enabled])
