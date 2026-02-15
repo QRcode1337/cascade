@@ -85,6 +85,16 @@ pnpm lint
 pnpm format
 ```
 
+### Demo Workflow for Potential Users
+
+A GitHub Actions demo workflow is included at `.github/workflows/demo-workflow.yml` to help potential users validate the project quickly in a clean environment.
+
+- Trigger it manually from **Actions → Demo Workflow → Run workflow**.
+- Set `audience` (defaults to `potential-users`) for run context.
+- Toggle `run_tests` to control whether lint/typecheck/test checks run.
+
+To avoid run conflicts when multiple demos are launched on the same branch, the workflow uses `concurrency` with `cancel-in-progress: true`.
+
 ---
 
 ## 🎯 Features
@@ -124,16 +134,16 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ## 🛠️ Technology Stack
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Frontend | Next.js 15, React 19, TypeScript | Operator UI with server components |
-| Backend | Node.js, TypeScript, ESM | Workflow execution service |
-| Database | PostgreSQL (Supabase), Prisma | Data persistence and ORM |
-| Queue | pg-boss | Job queue with at-least-once semantics |
-| Validation | Zod | Type-safe schema validation |
-| Styling | Tailwind CSS, shadcn/ui | Modern UI components |
-| Build | Turbo, tsup, tsc | Monorepo orchestration |
-| LLM | OpenAI API | AI capabilities |
+| Layer      | Technology                       | Purpose                                |
+| ---------- | -------------------------------- | -------------------------------------- |
+| Frontend   | Next.js 15, React 19, TypeScript | Operator UI with server components     |
+| Backend    | Node.js, TypeScript, ESM         | Workflow execution service             |
+| Database   | PostgreSQL (Supabase), Prisma    | Data persistence and ORM               |
+| Queue      | pg-boss                          | Job queue with at-least-once semantics |
+| Validation | Zod                              | Type-safe schema validation            |
+| Styling    | Tailwind CSS, shadcn/ui          | Modern UI components                   |
+| Build      | Turbo, tsup, tsc                 | Monorepo orchestration                 |
+| LLM        | OpenAI API                       | AI capabilities                        |
 
 ---
 
