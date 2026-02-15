@@ -16,6 +16,9 @@ import type { Node } from '@cascade/schemas';
 import { executeLlmNode } from '../connectors/openai.js';
 import { executeHttpNode } from '../connectors/http.js';
 import { executeSlackNode } from '../connectors/slack.js';
+import { publishToLinkedIn } from '../connectors/social-linkedin.js';
+import { publishToMeta } from '../connectors/social-meta.js';
+import { decryptSecret } from '../lib/secrets.js';
 
 export async function executeRun(runId: string, logger: Logger) {
   // Load run with related data
@@ -28,7 +31,7 @@ export async function executeRun(runId: string, logger: Logger) {
         },
       },
       workspace: {
-        include: { guardrail: true },
+        include: { guardrail: true, secrets: true },
       },
     },
   });
@@ -111,13 +114,10 @@ export async function executeRun(runId: string, logger: Logger) {
         },
       });
 
-      const startTime = Date.now();
-
       try {
         // Execute node based on type
-        const result = await executeNode(node, context, logger);
+        const result = await executeNode(node, context, logger, run.workspace.secrets);
 
-        const durationMs = Date.now() - startTime;
         totalTokensIn += result.tokensIn || 0;
         totalTokensOut += result.tokensOut || 0;
         totalCostCents += result.cost || 0;
@@ -139,6 +139,10 @@ export async function executeRun(runId: string, logger: Logger) {
         if (node.type === 'llm' && node.saveAs) {
           context = mergeStepOutput(context, node.saveAs, result.output);
         } else if (node.type === 'transform' && node.saveAs) {
+          context = mergeStepOutput(context, node.saveAs, result.output);
+        } else if (node.type === 'social_schedule' && node.saveAs) {
+          context = mergeStepOutput(context, node.saveAs, result.output);
+        } else if (node.type === 'social_publish' && node.saveAs) {
           context = mergeStepOutput(context, node.saveAs, result.output);
         } else if (node.type === 'http') {
           context = mergeStepOutput(context, `http_${currentNodeId}`, result.output);
@@ -199,7 +203,12 @@ interface NodeResult {
   cost?: number;
 }
 
-async function executeNode(node: Node, context: Record<string, unknown>, logger: Logger): Promise<NodeResult> {
+async function executeNode(
+  node: Node,
+  context: Record<string, unknown>,
+  logger: Logger,
+  workspaceSecrets: Array<{ key: string; cipherText: Buffer; iv: Buffer; authTag: Buffer }>
+): Promise<NodeResult> {
   switch (node.type) {
     case 'llm':
       return executeLlmNode(node, context);
@@ -226,6 +235,110 @@ async function executeNode(node: Node, context: Record<string, unknown>, logger:
       return { output: { waited: ms } };
     }
 
+    case 'social_schedule': {
+      const content = renderTemplate(node.content, context);
+      const media = renderMedia(node.media, context);
+      return {
+        output: {
+          mode: 'scheduled',
+          channel: node.channel,
+          publishAt: renderTemplate(node.publishAt, context),
+          timezone: node.timezone,
+          content,
+          media,
+        },
+      };
+    }
+
+    case 'social_publish': {
+      const content = renderTemplate(node.content, context);
+      const media = renderMedia(node.media, context);
+
+      try {
+        if (node.channel === 'linkedin') {
+          const credentialRefs = node.credentials?.linkedin;
+          if (!credentialRefs) {
+            throw new Error('Missing LinkedIn credential references on social_publish node.');
+          }
+
+          const accessToken = resolveSecretValue(workspaceSecrets, credentialRefs.accessToken.secretKey);
+          const authorUrn = resolveSecretValue(workspaceSecrets, credentialRefs.authorUrn.secretKey);
+
+          const publishResult = await publishToLinkedIn({
+            accessToken,
+            authorUrn,
+            content,
+            media,
+          });
+
+          if (!publishResult.ok) {
+            throw new Error(`LinkedIn publish failed with status ${publishResult.status}`);
+          }
+
+          return {
+            output: {
+              mode: 'published',
+              channel: node.channel,
+              postId: publishResult.postId,
+              status: publishResult.status,
+              providerResponse: publishResult.body,
+              content,
+              media,
+            },
+          };
+        }
+
+        if (node.channel === 'meta') {
+          const credentialRefs = node.credentials?.meta;
+          if (!credentialRefs) {
+            throw new Error('Missing Meta credential references on social_publish node.');
+          }
+
+          const accessToken = resolveSecretValue(workspaceSecrets, credentialRefs.accessToken.secretKey);
+          const pageId = resolveSecretValue(workspaceSecrets, credentialRefs.pageId.secretKey);
+
+          await publishToMeta({
+            accessToken,
+            pageId,
+            content,
+            media,
+          });
+
+          return {
+            output: {
+              mode: 'published',
+              channel: node.channel,
+              content,
+              media,
+            },
+          };
+        }
+
+        throw new Error(`Unsupported social channel: ${node.channel}`);
+      } catch (error) {
+        if (node.fallbackMode !== 'manual_export') {
+          throw error;
+        }
+
+        const reason = error instanceof Error ? error.message : 'Unknown publish error';
+        logger.warn({ nodeId: node.id, reason }, 'Falling back to manual social export mode');
+
+        return {
+          output: {
+            mode: 'manual_export',
+            channel: node.channel,
+            reason,
+            content,
+            media,
+            metadata: {
+              generatedAt: new Date().toISOString(),
+              instructions: 'Copy content and upload referenced media assets in your social channel UI.',
+            },
+          },
+        };
+      }
+    }
+
     case 'branch':
       // Branch evaluation happens in getNextNodeId
       return { output: { evaluated: true } };
@@ -245,9 +358,30 @@ async function executeNode(node: Node, context: Record<string, unknown>, logger:
   }
 }
 
+function resolveSecretValue(
+  workspaceSecrets: Array<{ key: string; cipherText: Buffer; iv: Buffer; authTag: Buffer }>,
+  secretKey: string
+): string {
+  const secret = workspaceSecrets.find((item) => item.key === secretKey);
+  if (!secret) {
+    throw new Error(`Secret not found: ${secretKey}`);
+  }
+
+  return decryptSecret(secret.cipherText, secret.iv, secret.authTag);
+}
+
+function renderMedia(
+  media: Array<{ url: string; mimeType?: string; title?: string; altText?: string }>,
+  context: Record<string, unknown>
+): Array<{ url: string; mimeType?: string; title?: string; altText?: string }> {
+  return media.map((item) => renderObjectTemplates(item, context));
+}
+
 function parseDuration(duration: string): number {
   const match = duration.match(/^(\d+)(s|m)$/);
   if (!match) throw new Error(`Invalid duration: ${duration}`);
-  const [, value, unit] = match;
+  const value = match[1];
+  const unit = match[2];
+  if (!value || !unit) throw new Error(`Invalid duration: ${duration}`);
   return parseInt(value, 10) * (unit === 'm' ? 60000 : 1000);
 }

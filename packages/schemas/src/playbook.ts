@@ -75,6 +75,64 @@ export const TransformNodeSchema = z.object({
   next: z.string().optional(),
 });
 
+export const SecretRefSchema = z.object({
+  secretKey: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[A-Z][A-Z0-9_]*$/, 'Secret key must be uppercase with underscores'),
+});
+
+export const SocialChannelSchema = z.enum(['linkedin', 'meta']);
+
+export const SocialMediaAssetSchema = z.object({
+  url: z.string().url(),
+  mimeType: z.string().optional(),
+  title: z.string().optional(),
+  altText: z.string().optional(),
+});
+
+const LinkedInCredentialsSchema = z.object({
+  accessToken: SecretRefSchema,
+  authorUrn: SecretRefSchema,
+});
+
+const MetaCredentialsSchema = z.object({
+  accessToken: SecretRefSchema,
+  pageId: SecretRefSchema,
+});
+
+export const SocialScheduleNodeSchema = z.object({
+  id: z.string().min(1),
+  type: z.literal('social_schedule'),
+  name: z.string().min(1),
+  channel: SocialChannelSchema,
+  publishAt: z.string().datetime(),
+  timezone: z.string().optional(),
+  content: z.string().min(1),
+  media: z.array(SocialMediaAssetSchema).default([]),
+  saveAs: z.string().optional(),
+  next: z.string().optional(),
+});
+
+export const SocialPublishNodeSchema = z.object({
+  id: z.string().min(1),
+  type: z.literal('social_publish'),
+  name: z.string().min(1),
+  channel: SocialChannelSchema,
+  content: z.string().min(1),
+  media: z.array(SocialMediaAssetSchema).default([]),
+  credentials: z
+    .object({
+      linkedin: LinkedInCredentialsSchema.optional(),
+      meta: MetaCredentialsSchema.optional(),
+    })
+    .optional(),
+  fallbackMode: z.enum(['manual_export', 'fail']).default('manual_export'),
+  saveAs: z.string().optional(),
+  next: z.string().optional(),
+});
+
 export const NodeSchema = z.discriminatedUnion('type', [
   LlmNodeSchema,
   HttpNodeSchema,
@@ -82,6 +140,8 @@ export const NodeSchema = z.discriminatedUnion('type', [
   SlackNodeSchema,
   WaitNodeSchema,
   TransformNodeSchema,
+  SocialScheduleNodeSchema,
+  SocialPublishNodeSchema,
 ]);
 
 // ============================================
@@ -139,6 +199,8 @@ export type BranchNode = z.infer<typeof BranchNodeSchema>;
 export type SlackNode = z.infer<typeof SlackNodeSchema>;
 export type WaitNode = z.infer<typeof WaitNodeSchema>;
 export type TransformNode = z.infer<typeof TransformNodeSchema>;
+export type SocialScheduleNode = z.infer<typeof SocialScheduleNodeSchema>;
+export type SocialPublishNode = z.infer<typeof SocialPublishNodeSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type PlaybookDefinition = z.infer<typeof PlaybookDefinitionSchema>;
 export type CreatePlaybook = z.infer<typeof CreatePlaybookSchema>;
