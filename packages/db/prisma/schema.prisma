@@ -73,6 +73,7 @@ model Workspace {
   secrets   Secret[]
   guardrail Guardrail?
   usageLogs UsageLog[]
+  auditLogs RunAuditLog[]
   triggers  Trigger[]
 
   @@index([userId])
@@ -166,6 +167,7 @@ model Run {
   playbookVer    PlaybookVersion @relation(fields: [playbookVerId], references: [id])
   trigger        Trigger?        @relation(fields: [triggerId], references: [id])
   steps          RunStep[]
+  auditLogs      RunAuditLog[]
 
   @@index([workspaceId, status])
   @@index([playbookVerId])
@@ -200,9 +202,30 @@ model RunStep {
   finishedAt     DateTime?
   createdAt      DateTime   @default(now())
   run            Run        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  auditLogs      RunAuditLog[]
 
   @@index([runId, idx])
   @@index([idempotencyKey])
+}
+
+model RunAuditLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  runId       String
+  stepId      String?
+  actor       String
+  action      String
+  channel     String?
+  destination String?
+  timestamp   DateTime  @default(now())
+  metadata    Json?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  run         Run       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step        RunStep?  @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, timestamp])
+  @@index([runId, timestamp])
+  @@index([action, timestamp])
 }
 
 enum StepStatus {

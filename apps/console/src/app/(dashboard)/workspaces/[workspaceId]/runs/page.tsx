@@ -1,42 +1,115 @@
-import Link from 'next/link';
-import { prisma } from '@cascade/db';
-import { formatDate, formatDuration, formatTokens, formatCost } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import { prisma } from "@cascade/db";
+import {
+  formatDate,
+  formatDuration,
+  formatTokens,
+  formatCost,
+} from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface RunsPageProps {
   params: Promise<{ workspaceId: string }>;
 }
 
-export const metadata = { title: 'Runs' };
+export const metadata = { title: "Runs" };
 
 const statusStyles: Record<string, string> = {
-  PENDING: 'bg-muted text-muted-foreground',
-  RUNNING: 'bg-blue-500/10 text-blue-600 animate-pulse',
-  SUCCEEDED: 'bg-green-500/10 text-green-600',
-  FAILED: 'bg-destructive/10 text-destructive',
-  CANCELED: 'bg-muted text-muted-foreground',
+  PENDING: "bg-muted text-muted-foreground",
+  RUNNING: "bg-blue-500/10 text-blue-600 animate-pulse",
+  SUCCEEDED: "bg-green-500/10 text-green-600",
+  FAILED: "bg-destructive/10 text-destructive",
+  CANCELED: "bg-muted text-muted-foreground",
 };
 
 export default async function RunsPage({ params }: RunsPageProps) {
   const { workspaceId } = await params;
 
-  const runs = await prisma.run.findMany({
-    where: { workspaceId },
-    include: {
-      playbookVer: {
-        select: {
-          version: true,
-          playbook: { select: { name: true } }
-        }
+  const [runs, workspace, usage] = await Promise.all([
+    prisma.run.findMany({
+      where: { workspaceId },
+      include: {
+        playbookVer: {
+          select: {
+            version: true,
+            playbook: { select: { name: true } },
+          },
+        },
+        _count: { select: { steps: true } },
       },
-      _count: { select: { steps: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: { guardrail: true },
+    }),
+    prisma.usageLog.aggregate({
+      where: {
+        workspaceId,
+        timestamp: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        },
+      },
+      _sum: {
+        tokensIn: true,
+        tokensOut: true,
+        costCents: true,
+      },
+    }),
+  ]);
+
+  const dailyTokens = (usage._sum.tokensIn ?? 0) + (usage._sum.tokensOut ?? 0);
+  const dailyCostCents = usage._sum.costCents ?? 0;
+  const dailyTokenCap = workspace?.guardrail?.dailyTokenCap ?? 250000;
+  const dailyCostCap = workspace?.guardrail?.dailyCostCapCents ?? 1000;
+  const tokenUtilization =
+    dailyTokenCap > 0 ? Math.min(100, (dailyTokens / dailyTokenCap) * 100) : 0;
+  const costUtilization =
+    dailyCostCap > 0 ? Math.min(100, (dailyCostCents / dailyCostCap) * 100) : 0;
 
   return (
-    <div className="mt-6">
+    <div className="mt-6 space-y-6">
+      <div className="rounded-lg border bg-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">Daily Cap Utilization</h3>
+          <span className="text-xs text-muted-foreground">
+            Resets at local midnight
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tokens</span>
+              <span className="font-medium">
+                {formatTokens(dailyTokens)} / {formatTokens(dailyTokenCap)}
+              </span>
+            </div>
+            <div className="h-2 rounded bg-muted overflow-hidden">
+              <div
+                className="h-full bg-blue-500"
+                style={{ width: `${tokenUtilization}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Cost</span>
+              <span className="font-medium">
+                {formatCost(dailyCostCents)} / {formatCost(dailyCostCap)}
+              </span>
+            </div>
+            <div className="h-2 rounded bg-muted overflow-hidden">
+              <div
+                className="h-full bg-emerald-500"
+                style={{ width: `${costUtilization}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold">Recent Runs</h2>
       </div>
@@ -44,8 +117,18 @@ export default async function RunsPage({ params }: RunsPageProps) {
       {runs.length === 0 ? (
         <div className="rounded-lg border bg-card p-12 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-            <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <svg
+              className="w-6 h-6 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
             </svg>
           </div>
           <h3 className="font-semibold mb-2">No runs yet</h3>
@@ -56,9 +139,11 @@ export default async function RunsPage({ params }: RunsPageProps) {
       ) : (
         <div className="rounded-lg border bg-card divide-y">
           {runs.map((run) => {
-            const durationMs = run.finishedAt && run.startedAt
-              ? new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()
-              : null;
+            const durationMs =
+              run.finishedAt && run.startedAt
+                ? new Date(run.finishedAt).getTime() -
+                  new Date(run.startedAt).getTime()
+                : null;
             const totalTokens = run.tokensIn + run.tokensOut;
 
             return (
@@ -68,11 +153,18 @@ export default async function RunsPage({ params }: RunsPageProps) {
                 className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <span className={cn('px-2 py-1 text-xs rounded-full font-medium', statusStyles[run.status])}>
+                  <span
+                    className={cn(
+                      "px-2 py-1 text-xs rounded-full font-medium",
+                      statusStyles[run.status],
+                    )}
+                  >
                     {run.status}
                   </span>
                   <div>
-                    <h3 className="font-medium">{run.playbookVer.playbook.name} v{run.playbookVer.version}</h3>
+                    <h3 className="font-medium">
+                      {run.playbookVer.playbook.name} v{run.playbookVer.version}
+                    </h3>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                       <span>{run._count.steps} steps</span>
                       {durationMs && <span>{formatDuration(durationMs)}</span>}
@@ -81,10 +173,24 @@ export default async function RunsPage({ params }: RunsPageProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {totalTokens > 0 && <span>{formatTokens(totalTokens)} tokens</span>}
-                  {run.costCents > 0 && <span>{formatCost(run.costCents)}</span>}
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  {totalTokens > 0 && (
+                    <span>{formatTokens(totalTokens)} tokens</span>
+                  )}
+                  {run.costCents > 0 && (
+                    <span>{formatCost(run.costCents)}</span>
+                  )}
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </div>
               </Link>
