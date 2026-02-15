@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 interface WorkspaceNavProps {
   workspaceId: string;
@@ -12,10 +12,11 @@ export function WorkspaceNav({ workspaceId }: WorkspaceNavProps) {
   const pathname = usePathname();
 
   const tabs = [
-    { name: 'Playbooks', href: `/workspaces/${workspaceId}/playbooks` },
-    { name: 'Runs', href: `/workspaces/${workspaceId}/runs` },
-    { name: 'Secrets', href: `/workspaces/${workspaceId}/secrets` },
-    { name: 'Settings', href: `/workspaces/${workspaceId}/settings` },
+    { name: "Playbooks", href: `/workspaces/${workspaceId}/playbooks` },
+    { name: "Guided Flow", href: `/workspaces/${workspaceId}/guided-flow` },
+    { name: "Runs", href: `/workspaces/${workspaceId}/runs` },
+    { name: "Secrets", href: `/workspaces/${workspaceId}/secrets` },
+    { name: "Settings", href: `/workspaces/${workspaceId}/settings` },
   ];
 
   return (
@@ -27,10 +28,10 @@ export function WorkspaceNav({ workspaceId }: WorkspaceNavProps) {
             key={tab.name}
             href={tab.href}
             className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
               isActive
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.name}
