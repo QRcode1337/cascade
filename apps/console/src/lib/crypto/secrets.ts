@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.SECRETS_ENCRYPTION_KEY || 'default-key-change-in-production-32';
+const ENCRYPTION_KEY =
+  process.env.ENCRYPTION_KEY ||
+  process.env.SECRETS_ENCRYPTION_KEY ||
+  'default-key-change-in-production-32';
 const ALGORITHM = 'aes-256-gcm';
 
 export function encrypt(text: string): { cipherText: Buffer; iv: Buffer; authTag: Buffer } {
