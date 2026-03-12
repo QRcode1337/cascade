@@ -2,6 +2,7 @@ import PgBoss from 'pg-boss';
 import pino from 'pino';
 import { prisma } from '@cascade/db';
 import { executeRun } from './handlers/execute-run.js';
+import { startScheduler } from './schedulers/schedule-triggers.js';
 
 const logger = pino({
   transport: {
@@ -53,9 +54,12 @@ async function main() {
 
   logger.info({ concurrency: CONCURRENCY }, 'Worker ready, listening for jobs');
 
+  const schedulerTimer = startScheduler(boss, logger);
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Received shutdown signal');
+    clearInterval(schedulerTimer);
     await boss.stop({ graceful: true, timeout: 30000 });
     await prisma.$disconnect();
     process.exit(0);

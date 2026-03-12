@@ -44,6 +44,22 @@ export function checkGuardrails(
     };
   }
 
+  // Check per-run cost cap
+  if (runUsage.costCents > config.perRunCostCapCents) {
+    return {
+      allowed: false,
+      reason: `Per-run cost cap exceeded ($${(runUsage.costCents / 100).toFixed(2)} > $${(config.perRunCostCapCents / 100).toFixed(2)})`,
+    };
+  }
+
+  // Check daily cost cap
+  if (dailyUsage.costCents > config.dailyCostCapCents) {
+    return {
+      allowed: false,
+      reason: `Daily cost cap exceeded ($${(dailyUsage.costCents / 100).toFixed(2)} > $${(config.dailyCostCapCents / 100).toFixed(2)})`,
+    };
+  }
+
   return {
     allowed: true,
     reservedTokens: estimatedTokens,

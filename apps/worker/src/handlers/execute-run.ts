@@ -16,6 +16,30 @@ import type { Node, PlaybookDefinition } from "@cascade/schemas";
 import { executeLlmNode } from "../connectors/openai.js";
 import { executeHttpNode } from "../connectors/http.js";
 import { executeSlackNode } from "../connectors/slack.js";
+import { checkRateLimit } from "../middleware/rate-limiter.js";
+import { sendGuardrailBreachAlert } from "../lib/guardrail-alert.js";
+
+const RETRYABLE_NODE_TYPES = new Set(["llm", "http"]);
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getDailyUsageForWorkspace(workspaceId: string) {
+  const startOfDayUtc = new Date();
+  startOfDayUtc.setUTCHours(0, 0, 0, 0);
+  const result = await prisma.usageLog.aggregate({
+    where: { workspaceId, timestamp: { gte: startOfDayUtc } },
+    _sum: { tokensIn: true, tokensOut: true, costCents: true },
+  });
+  return {
+    tokensIn: result._sum.tokensIn ?? 0,
+    tokensOut: result._sum.tokensOut ?? 0,
+    costCents: result._sum.costCents ?? 0,
+  };
+}
 
 export async function executeRun(runId: string, logger: Logger) {
   // Load run with related data
@@ -58,6 +82,9 @@ export async function executeRun(runId: string, logger: Logger) {
   const playbook = parseResult.data!;
   const nodeMap = buildNodeMap(playbook);
 
+  // Enforce per-workspace rate limit before consuming any resources
+  checkRateLimit(run.workspaceId);
+
   // Initialize execution context
   let context = createContext(run.input as Record<string, unknown>);
   context = addRuntimeMetadata(context, {
@@ -94,14 +121,24 @@ export async function executeRun(runId: string, logger: Logger) {
 
       // Check guardrails before execution
       if (run.workspace.guardrail) {
-        const guardrailCheck = checkGuardrails(run.workspace.guardrail, {
-          runTokens: totalTokensIn + totalTokensOut,
-          dailyTokens: 0, // TODO: Calculate from UsageLog
-          runCostCents: totalCostCents,
-          dailyCostCents: 0,
-        });
-
+        const dailyUsage = await getDailyUsageForWorkspace(run.workspaceId);
+        const guardrailCheck = checkGuardrails(
+          run.workspace.guardrail,
+          { tokensIn: totalTokensIn, tokensOut: totalTokensOut, costCents: totalCostCents },
+          dailyUsage,
+          0,
+        );
         if (!guardrailCheck.allowed) {
+          // Fire-and-forget alert — must not delay or suppress the breach error.
+          void sendGuardrailBreachAlert(
+            {
+              workspaceId: run.workspaceId,
+              workspaceName: run.workspace.name,
+              runId,
+              reason: guardrailCheck.reason ?? 'limit exceeded',
+            },
+            logger,
+          );
           throw new Error(`Guardrail exceeded: ${guardrailCheck.reason}`);
         }
       }
@@ -121,8 +158,22 @@ export async function executeRun(runId: string, logger: Logger) {
       });
 
       try {
-        // Execute node based on type
-        const result = await executeNode(node, context, logger);
+        // Execute node with retry for LLM and HTTP steps
+        const isRetryable = RETRYABLE_NODE_TYPES.has(node.type);
+        let result!: NodeResult;
+        for (let attempt = 1; attempt <= (isRetryable ? MAX_RETRIES : 1); attempt++) {
+          try {
+            result = await executeNode(node, context, logger);
+            break;
+          } catch (err) {
+            const isLast = attempt === MAX_RETRIES || !isRetryable;
+            if (isLast) throw err;
+            const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+            logger.warn({ nodeId: currentNodeId, attempt, delayMs }, 'Step failed, retrying');
+            await prisma.runStep.update({ where: { id: step.id }, data: { retryCount: attempt } });
+            await sleep(delayMs);
+          }
+        }
 
         totalTokensIn += result.tokensIn || 0;
         totalTokensOut += result.tokensOut || 0;
