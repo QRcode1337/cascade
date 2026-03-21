@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "name": "Security: Fraud Detection",
+    "description": "Real-time fraud detection pipeline using graph-based entity scoring and intelligence attribution. Triggered on incoming transactions via webhook; anomalous entities are analyzed for fraud patterns and an alert is posted to Slack.",
+    "category": "security",
+    "version": "1.0.0"
+  },
+  "version": 1,
+  "entry": "trigger",
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "name": "Webhook Trigger",
+      "triggerType": "WEBHOOK",
+      "config": {
+        "description": "Receives incoming transaction payloads for real-time fraud analysis"
+      },
+      "next": "normalize-transaction"
+    },
+    {
+      "id": "normalize-transaction",
+      "type": "transform",
+      "name": "Normalize Transaction",
+      "expression": "{ nodes: input.entities || [], edges: input.relationships || [], raw: input }",
+      "saveAs": "normalize-transaction",
+      "next": "score-entities"
+    },
+    {
+      "id": "score-entities",
+      "type": "graph-analyze",
+      "name": "Score Entities (PageRank)",
+      "inputs": {
+        "nodes": "{{normalize-transaction.nodes}}",
+        "edges": "{{normalize-transaction.edges}}"
+      },
+      "config": {
+        "damping": 0.85,
+        "threshold": 0.25,
+        "top_k": 10
+      },
+      "saveAs": "score-entities",
+      "next": "check-anomaly"
+    },
+    {
+      "id": "check-anomaly",
+      "type": "branch",
+      "name": "Check for Anomaly",
+      "expression": "score-entities.anomalies.length > 0 || (score-entities.topNodes[0] && score-entities.topNodes[0].score > 0.3)"
+    },
+    {
+      "id": "attribute-fraud",
+      "type": "intelligence",
+      "name": "Attribute Fraud Pattern",
+      "inputs": {
+        "query": "Analyze fraud pattern for: {{score-entities.topNodes}}",
+        "domain": "fraud-detection"
+      },
+      "config": {
+        "depth": 5,
+        "confidence_min": 0.65,
+        "creative_mode": false
+      },
+      "saveAs": "attribute-fraud",
+      "next": "write-alert"
+    },
+    {
+      "id": "write-alert",
+      "type": "llm",
+      "name": "Write Fraud Alert",
+      "model": "gpt-4o-mini",
+      "system": "You are a security analyst. Write a concise, actionable fraud alert from the provided intelligence report. Include: severity level, affected entities, recommended actions. Format for Slack (plain text, no markdown).",
+      "prompt": "Intelligence report:\n{{attribute-fraud.reasoning}}\n\nConfidence: {{attribute-fraud.confidence}}\nDomains: {{attribute-fraud.domains}}\nTop entities: {{score-entities.topNodes}}\nAnomalies: {{score-entities.anomalies}}\n\nWrite a Slack-ready fraud alert.",
+      "maxOutputTokens": 512,
+      "temperature": 0.2,
+      "saveAs": "write-alert",
+      "next": "send-alert"
+    },
+    {
+      "id": "send-alert",
+      "type": "http",
+      "name": "Send Alert to Slack",
+      "method": "POST",
+      "url": "{{secrets.SLACK_WEBHOOK_URL}}",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "text": "🚨 *FRAUD ALERT*\n{{write-alert}}",
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "🚨 *FRAUD ALERT DETECTED*\n{{write-alert}}"
+            }
+          },
+          {
+            "type": "context",
+            "elements": [
+              {
+                "type": "mrkdwn",
+                "text": "Confidence: {{attribute-fraud.confidence}} | Anomalies: {{score-entities.anomalies.length}} | Top score: {{score-entities.topNodes.0.score}}"
+              }
+            ]
+          }
+        ]
+      },
+      "timeout": 10000
+    },
+    {
+      "id": "log-clean",
+      "type": "transform",
+      "name": "Log Clean Transaction",
+      "expression": "{ status: 'clean', timestamp: Date.now(), entities: score-entities.topNodes, statistics: score-entities.statistics }",
+      "saveAs": "log-clean"
+    }
+  ],
+  "edges": [
+    { "from": "trigger",              "to": "normalize-transaction" },
+    { "from": "normalize-transaction","to": "score-entities" },
+    { "from": "score-entities",       "to": "check-anomaly" },
+    { "from": "check-anomaly",        "to": "attribute-fraud",  "label": "anomaly detected" },
+    { "from": "check-anomaly",        "to": "log-clean",        "label": "clean" },
+    { "from": "attribute-fraud",      "to": "write-alert" },
+    { "from": "write-alert",          "to": "send-alert" }
+  ],
+  "_branchMap": {
+    "check-anomaly": {
+      "onTrue":  "attribute-fraud",
+      "onFalse": "log-clean"
+    }
+  }
+}

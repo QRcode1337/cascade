@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@cascade/db";
+import { Prisma, prisma } from "@cascade/db";
 
 // Agent definitions from AGENTS.md
 const AGENTS = [
@@ -310,114 +310,49 @@ const TEMPLATES = [
 
 export async function POST() {
   try {
-    // Create tables if they don't exist
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "Agent" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "slug" TEXT NOT NULL UNIQUE,
-        "name" TEXT NOT NULL,
-        "mission" TEXT NOT NULL,
-        "systemPrompt" TEXT,
-        "playbooks" TEXT[] DEFAULT '{}',
-        "outputs" TEXT[] DEFAULT '{}',
-        "lane" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await prisma
-      .$executeRawUnsafe(
-        `
-      CREATE INDEX IF NOT EXISTS "Agent_slug_idx" ON "Agent"("slug")
-    `,
-      )
-      .catch(() => {});
-
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "PlaybookTemplate" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "slug" TEXT NOT NULL UNIQUE,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "content" TEXT NOT NULL,
-        "category" TEXT NOT NULL,
-        "agents" TEXT[] DEFAULT '{}',
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await prisma
-      .$executeRawUnsafe(
-        `
-      CREATE INDEX IF NOT EXISTS "PlaybookTemplate_category_idx" ON "PlaybookTemplate"("category")
-    `,
-      )
-      .catch(() => {});
-
-    // Add new columns to Playbook if they don't exist
-    await prisma
-      .$executeRawUnsafe(
-        `ALTER TABLE "Playbook" ADD COLUMN IF NOT EXISTS "agentSlug" TEXT`,
-      )
-      .catch(() => {});
-    await prisma
-      .$executeRawUnsafe(
-        `ALTER TABLE "Playbook" ADD COLUMN IF NOT EXISTS "templateId" TEXT`,
-      )
-      .catch(() => {});
-    await prisma
-      .$executeRawUnsafe(
-        `ALTER TABLE "Playbook" ADD COLUMN IF NOT EXISTS "lane" TEXT`,
-      )
-      .catch(() => {});
-
     // Seed agents
     for (const agent of AGENTS) {
-      await prisma.$executeRawUnsafe(
-        `
-        INSERT INTO "Agent" ("id", "slug", "name", "mission", "systemPrompt", "playbooks", "outputs", "lane", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        ON CONFLICT ("slug") DO UPDATE SET
-          "name" = EXCLUDED."name",
-          "mission" = EXCLUDED."mission",
-          "systemPrompt" = EXCLUDED."systemPrompt",
-          "playbooks" = EXCLUDED."playbooks",
-          "outputs" = EXCLUDED."outputs",
-          "lane" = EXCLUDED."lane",
-          "updatedAt" = NOW()
-      `,
-        agent.slug,
-        agent.name,
-        agent.mission,
-        agent.systemPrompt,
-        agent.playbooks,
-        agent.outputs,
-        agent.lane,
-      );
+      await prisma.agent.upsert({
+        where: { slug: agent.slug },
+        create: {
+          slug: agent.slug,
+          name: agent.name,
+          mission: agent.mission,
+          systemPrompt: agent.systemPrompt,
+          playbooks: agent.playbooks,
+          outputs: agent.outputs,
+          lane: agent.lane,
+        },
+        update: {
+          name: agent.name,
+          mission: agent.mission,
+          systemPrompt: agent.systemPrompt,
+          playbooks: agent.playbooks,
+          outputs: agent.outputs,
+          lane: agent.lane,
+        },
+      });
     }
 
     // Seed templates (without content for now - just metadata)
     for (const template of TEMPLATES) {
-      await prisma.$executeRawUnsafe(
-        `
-        INSERT INTO "PlaybookTemplate" ("id", "slug", "name", "description", "content", "category", "agents", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, NOW(), NOW())
-        ON CONFLICT ("slug") DO UPDATE SET
-          "name" = EXCLUDED."name",
-          "description" = EXCLUDED."description",
-          "category" = EXCLUDED."category",
-          "agents" = EXCLUDED."agents",
-          "updatedAt" = NOW()
-      `,
-        template.slug,
-        template.name,
-        `Template from ${template.file}`,
-        `See ${template.file} for content`,
-        template.category,
-        template.agents,
-      );
+      await prisma.playbookTemplate.upsert({
+        where: { slug: template.slug },
+        create: {
+          slug: template.slug,
+          name: template.name,
+          description: `Template from ${template.file}`,
+          content: `See ${template.file} for content`,
+          category: template.category,
+          agents: template.agents,
+        },
+        update: {
+          name: template.name,
+          description: `Template from ${template.file}`,
+          category: template.category,
+          agents: template.agents,
+        },
+      });
     }
 
     return NextResponse.json({
@@ -427,6 +362,17 @@ export async function POST() {
     });
   } catch (error) {
     console.error("Seed error:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022")
+    ) {
+      return NextResponse.json(
+        { error: "Database schema is out of date. Run `pnpm db:migrate` and retry." },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Seed failed" },
       { status: 500 },

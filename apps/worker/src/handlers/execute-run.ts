@@ -16,6 +16,9 @@ import type { Node, PlaybookDefinition } from "@cascade/schemas";
 import { executeLlmNode } from "../connectors/openai.js";
 import { executeHttpNode } from "../connectors/http.js";
 import { executeSlackNode } from "../connectors/slack.js";
+import { executeGraphNode } from "../executors/graph.js";
+import { executeIntelligenceNode } from "../executors/intelligence.js";
+import { executeEmergenceNode } from "../executors/emergence.js";
 import { checkRateLimit } from "../middleware/rate-limiter.js";
 import { sendGuardrailBreachAlert } from "../lib/guardrail-alert.js";
 
@@ -209,6 +212,12 @@ export async function executeRun(runId: string, logger: Logger) {
           );
         } else if (node.type === "http") {
           context = mergeStepOutput(context, node.id, undefined, result.output);
+        } else if (node.type === "graph-analyze" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        } else if (node.type === "intelligence" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        } else if (node.type === "emergence-detect" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
         }
 
         // Determine next node
@@ -393,6 +402,21 @@ async function executeNode(
         throw new Error(`Transform failed: ${result.error}`);
       }
       return { output: result.value };
+    }
+
+    case "graph-analyze": {
+      const output = await executeGraphNode(node, context);
+      return { output };
+    }
+
+    case "intelligence": {
+      const output = await executeIntelligenceNode(node, context);
+      return { output };
+    }
+
+    case "emergence-detect": {
+      const output = await executeEmergenceNode(node, context);
+      return { output };
     }
 
     default:
