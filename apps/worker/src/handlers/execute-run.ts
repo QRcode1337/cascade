@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import type { Logger } from "pino";
 import { prisma, Prisma } from "@cascade/db";
 import {
@@ -13,14 +12,37 @@ import {
   evaluateCondition,
   checkGuardrails,
 } from "@cascade/runtime";
-import type { Node } from "@cascade/schemas";
+import type { Node, PlaybookDefinition } from "@cascade/schemas";
 import { executeLlmNode } from "../connectors/openai.js";
 import { executeHttpNode } from "../connectors/http.js";
 import { executeSlackNode } from "../connectors/slack.js";
+import { executeGraphNode } from "../executors/graph.js";
+import { executeIntelligenceNode } from "../executors/intelligence.js";
+import { executeEmergenceNode } from "../executors/emergence.js";
+import { checkRateLimit } from "../middleware/rate-limiter.js";
+import { sendGuardrailBreachAlert } from "../lib/guardrail-alert.js";
 
-const ENCRYPTION_KEY =
-  process.env.SECRETS_ENCRYPTION_KEY || "default-key-change-in-production-32";
-const ALGORITHM = "aes-256-gcm";
+const RETRYABLE_NODE_TYPES = new Set(["llm", "http"]);
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getDailyUsageForWorkspace(workspaceId: string) {
+  const startOfDayUtc = new Date();
+  startOfDayUtc.setUTCHours(0, 0, 0, 0);
+  const result = await prisma.usageLog.aggregate({
+    where: { workspaceId, timestamp: { gte: startOfDayUtc } },
+    _sum: { tokensIn: true, tokensOut: true, costCents: true },
+  });
+  return {
+    tokensIn: result._sum.tokensIn ?? 0,
+    tokensOut: result._sum.tokensOut ?? 0,
+    costCents: result._sum.costCents ?? 0,
+  };
+}
 
 export async function executeRun(runId: string, logger: Logger) {
   const run = await prisma.run.findUnique({
@@ -46,17 +68,24 @@ export async function executeRun(runId: string, logger: Logger) {
     throw new Error(`No playbook version found for run: ${runId}`);
   }
 
-  const parseResult = parsePlaybook(playbookVersion.definition);
+  // Parse playbook definition (support legacy console workflow shape)
+  const normalizedDefinition = normalizePlaybookDefinition(
+    playbookVersion.definition,
+  );
+  const parseResult = parsePlaybook(normalizedDefinition);
   if (!parseResult.success) {
-    await markRunFailed(
-      runId,
-      `Invalid playbook: ${parseResult.errors.join(", ")}`,
-    );
-    throw new Error(`Invalid playbook: ${parseResult.errors.join(", ")}`);
+    const errors = (parseResult.errors || [])
+      .map((err) => `${err.path}: ${err.message}`)
+      .join(", ");
+    await markRunFailed(runId, `Invalid playbook: ${errors}`);
+    throw new Error(`Invalid playbook: ${errors}`);
   }
 
   const playbook = parseResult.data!;
-  const nodeMap = buildNodeMap(playbook.nodes);
+  const nodeMap = buildNodeMap(playbook);
+
+  // Enforce per-workspace rate limit before consuming any resources
+  checkRateLimit(run.workspaceId);
 
   let context = createContext(run.input as Record<string, unknown>);
   const resolvedSecrets = await loadWorkspaceSecrets(run.workspaceId, run.id);
@@ -75,7 +104,7 @@ export async function executeRun(runId: string, logger: Logger) {
     data: { status: "RUNNING", startedAt: new Date() },
   });
 
-  let currentNodeId: string | null = playbook.entryNode;
+  let currentNodeId: string | null = playbook.entry;
   let stepIndex = 0;
   let totalTokensIn = 0;
   let totalTokensOut = 0;
@@ -96,14 +125,24 @@ export async function executeRun(runId: string, logger: Logger) {
       const dailyUsage = await getDailyUsage(run.workspaceId);
 
       if (run.workspace.guardrail) {
-        const guardrailCheck = checkGuardrails(run.workspace.guardrail, {
-          runTokens: totalTokensIn + totalTokensOut,
-          dailyTokens: dailyUsage.tokensIn + dailyUsage.tokensOut,
-          runCostCents: totalCostCents,
-          dailyCostCents: dailyUsage.costCents,
-        });
-
+        const dailyUsage = await getDailyUsageForWorkspace(run.workspaceId);
+        const guardrailCheck = checkGuardrails(
+          run.workspace.guardrail,
+          { tokensIn: totalTokensIn, tokensOut: totalTokensOut, costCents: totalCostCents },
+          dailyUsage,
+          0,
+        );
         if (!guardrailCheck.allowed) {
+          // Fire-and-forget alert — must not delay or suppress the breach error.
+          void sendGuardrailBreachAlert(
+            {
+              workspaceId: run.workspaceId,
+              workspaceName: run.workspace.name,
+              runId,
+              reason: guardrailCheck.reason ?? 'limit exceeded',
+            },
+            logger,
+          );
           throw new Error(`Guardrail exceeded: ${guardrailCheck.reason}`);
         }
       }
@@ -123,16 +162,24 @@ export async function executeRun(runId: string, logger: Logger) {
         },
       });
 
-      const startTime = Date.now();
-
       try {
-        const result = await executeNode(node, context, logger, {
-          runId,
-          workspaceId: run.workspaceId,
-          stepId: step.id,
-        });
+        // Execute node with retry for LLM and HTTP steps
+        const isRetryable = RETRYABLE_NODE_TYPES.has(node.type);
+        let result!: NodeResult;
+        for (let attempt = 1; attempt <= (isRetryable ? MAX_RETRIES : 1); attempt++) {
+          try {
+            result = await executeNode(node, context, logger);
+            break;
+          } catch (err) {
+            const isLast = attempt === MAX_RETRIES || !isRetryable;
+            if (isLast) throw err;
+            const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+            logger.warn({ nodeId: currentNodeId, attempt, delayMs }, 'Step failed, retrying');
+            await prisma.runStep.update({ where: { id: step.id }, data: { retryCount: attempt } });
+            await sleep(delayMs);
+          }
+        }
 
-        const durationMs = Date.now() - startTime;
         totalTokensIn += result.tokensIn || 0;
         totalTokensOut += result.tokensOut || 0;
         totalCostCents += result.cost || 0;
@@ -176,6 +223,37 @@ export async function executeRun(runId: string, logger: Logger) {
         }
 
         currentNodeId = getNextNodeId(node, context, evaluateCondition);
+        // Merge output into context
+        if (node.type === "llm" && node.saveAs) {
+          context = mergeStepOutput(
+            context,
+            node.id,
+            node.saveAs,
+            result.output,
+          );
+        } else if (node.type === "transform" && node.saveAs) {
+          context = mergeStepOutput(
+            context,
+            node.id,
+            node.saveAs,
+            result.output,
+          );
+        } else if (node.type === "http") {
+          context = mergeStepOutput(context, node.id, undefined, result.output);
+        } else if (node.type === "graph-analyze" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        } else if (node.type === "intelligence" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        } else if (node.type === "emergence-detect" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        }
+
+        // Determine next node
+        const branchResult =
+          node.type === "branch"
+            ? evaluateCondition(node.expression, context)
+            : undefined;
+        currentNodeId = getNextNodeId(node, branchResult);
         stepIndex++;
       } catch (error) {
         const errorMessage =
@@ -225,6 +303,80 @@ async function markRunFailed(runId: string, error: string) {
   });
 }
 
+interface LegacyWorkflowStep {
+  id: string;
+  name?: string;
+  description?: string;
+  config?: {
+    outputType?: string;
+    systemPrompt?: string | null;
+  };
+}
+
+interface LegacyWorkflowDefinition {
+  agent?: {
+    name?: string;
+    mission?: string;
+    systemPrompt?: string;
+  };
+  steps?: LegacyWorkflowStep[];
+}
+
+function normalizePlaybookDefinition(definition: unknown): unknown {
+  const parsed = parsePlaybook(definition);
+  if (parsed.success) {
+    return definition;
+  }
+
+  if (!isLegacyWorkflow(definition) || !definition.steps?.length) {
+    return definition;
+  }
+
+  const nodes: PlaybookDefinition["nodes"] = definition.steps.map(
+    (step, idx) => {
+      const isLast = idx === definition.steps!.length - 1;
+      const outputType =
+        step.config?.outputType || step.description || `Output ${idx + 1}`;
+
+      return {
+        id: step.id || `step_${idx + 1}`,
+        type: "llm",
+        name: step.name || `Step ${idx + 1}`,
+        model: "gpt-4o",
+        system:
+          step.config?.systemPrompt ||
+          definition.agent?.systemPrompt ||
+          undefined,
+        prompt: [
+          definition.agent?.mission || "Generate a professional output.",
+          `Output requested: ${outputType}`,
+          "Use available context from prior steps and inputs when relevant.",
+        ].join("\n"),
+        maxOutputTokens: 2048,
+        temperature: 0.7,
+        saveAs: step.id || `step_${idx + 1}`,
+        next: isLast
+          ? undefined
+          : definition.steps![idx + 1]!.id || `step_${idx + 2}`,
+      };
+    },
+  );
+
+  return {
+    version: 1,
+    entry: nodes[0]?.id,
+    nodes,
+  } satisfies PlaybookDefinition;
+}
+
+function isLegacyWorkflow(value: unknown): value is LegacyWorkflowDefinition {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Array.isArray((value as LegacyWorkflowDefinition).steps)
+  );
+}
+
 interface NodeResult {
   output: unknown;
   tokensIn?: number;
@@ -232,17 +384,10 @@ interface NodeResult {
   cost?: number;
 }
 
-interface ExecutionAuditContext {
-  workspaceId: string;
-  runId: string;
-  stepId: string;
-}
-
 async function executeNode(
   node: Node,
   context: Record<string, unknown>,
   logger: Logger,
-  auditContext: ExecutionAuditContext,
 ): Promise<NodeResult> {
   switch (node.type) {
     case "llm":
@@ -291,15 +436,32 @@ async function executeNode(
     }
 
     case "branch":
+      // Branch evaluation happens in getNextNodeId
       return { output: { evaluated: true } };
 
     case "transform": {
+      // Transform uses expression evaluation (handled in runtime)
       const { evaluateExpression } = await import("@cascade/runtime");
       const result = evaluateExpression(node.expression, context);
       if (!result.success) {
         throw new Error(`Transform failed: ${result.error}`);
       }
       return { output: result.value };
+    }
+
+    case "graph-analyze": {
+      const output = await executeGraphNode(node, context);
+      return { output };
+    }
+
+    case "intelligence": {
+      const output = await executeIntelligenceNode(node, context);
+      return { output };
+    }
+
+    case "emergence-detect": {
+      const output = await executeEmergenceNode(node, context);
+      return { output };
     }
 
     default:
@@ -310,152 +472,6 @@ async function executeNode(
 function parseDuration(duration: string): number {
   const match = duration.match(/^(\d+)(s|m)$/);
   if (!match) throw new Error(`Invalid duration: ${duration}`);
-  const value = match[1]!;
-  const unit = match[2]!;
+  const [, value, unit] = match;
   return parseInt(value, 10) * (unit === "m" ? 60000 : 1000);
-}
-
-async function getDailyUsage(
-  workspaceId: string,
-): Promise<{ tokensIn: number; tokensOut: number; costCents: number }> {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const aggregate = await prisma.usageLog.aggregate({
-    where: {
-      workspaceId,
-      timestamp: {
-        gte: startOfDay,
-      },
-    },
-    _sum: {
-      tokensIn: true,
-      tokensOut: true,
-      costCents: true,
-    },
-  });
-
-  return {
-    tokensIn: aggregate._sum.tokensIn ?? 0,
-    tokensOut: aggregate._sum.tokensOut ?? 0,
-    costCents: aggregate._sum.costCents ?? 0,
-  };
-}
-
-function enforceConsentPolicy(node: Node, context: Record<string, unknown>) {
-  if (node.type !== "http" && node.type !== "slack") {
-    return;
-  }
-
-  const rawInput = JSON.stringify({ node, context }).toLowerCase();
-  const messagingWorkflow =
-    /\bsms\b|social dm|direct message|whatsapp|twilio|instagram dm|linkedin dm/.test(
-      rawInput,
-    );
-
-  if (!messagingWorkflow) {
-    return;
-  }
-
-  const consentContext = context as {
-    consent?: { messaging?: boolean; sms?: boolean; socialDm?: boolean };
-    user?: {
-      consent?: { messaging?: boolean; sms?: boolean; socialDm?: boolean };
-    };
-  };
-
-  const hasConsent =
-    consentContext.consent?.messaging === true ||
-    consentContext.consent?.sms === true ||
-    consentContext.consent?.socialDm === true ||
-    consentContext.user?.consent?.messaging === true ||
-    consentContext.user?.consent?.sms === true ||
-    consentContext.user?.consent?.socialDm === true;
-
-  if (!hasConsent) {
-    throw new Error(
-      "Consent policy check failed: messaging automation requires explicit consent in run context",
-    );
-  }
-}
-
-async function loadWorkspaceSecrets(
-  workspaceId: string,
-  runId: string,
-): Promise<Record<string, string>> {
-  const secrets = await prisma.secret.findMany({
-    where: { workspaceId },
-    select: { key: true, cipherText: true, iv: true, authTag: true },
-  });
-
-  const resolved: Record<string, string> = {};
-
-  for (const secret of secrets) {
-    resolved[secret.key] = decryptSecret(
-      secret.cipherText,
-      secret.iv,
-      secret.authTag,
-    );
-
-    await writeRunAudit({
-      workspaceId,
-      runId,
-      actor: "worker",
-      action: "secret.access",
-      channel: "secret_store",
-      destination: secret.key,
-      metadata: { access: "read" },
-    });
-  }
-
-  return resolved;
-}
-
-function decryptSecret(
-  cipherText: Buffer,
-  iv: Buffer,
-  authTag: Buffer,
-): string {
-  const key = crypto.scryptSync(ENCRYPTION_KEY, "salt", 32);
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  const decrypted = Buffer.concat([
-    decipher.update(cipherText),
-    decipher.final(),
-  ]);
-  return decrypted.toString("utf8");
-}
-
-async function writeRunAudit(params: {
-  workspaceId: string;
-  runId: string;
-  stepId?: string;
-  actor: string;
-  action: string;
-  channel?: string;
-  destination?: string;
-  metadata?: Prisma.JsonObject;
-}) {
-  await prisma.runAuditLog.create({
-    data: {
-      workspaceId: params.workspaceId,
-      runId: params.runId,
-      stepId: params.stepId,
-      actor: params.actor,
-      action: params.action,
-      channel: params.channel,
-      destination: params.destination,
-      timestamp: new Date(),
-      metadata: params.metadata,
-    },
-  });
-}
-
-function safeDestinationFromUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
-  } catch {
-    return url;
-  }
 }

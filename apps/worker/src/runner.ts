@@ -14,7 +14,7 @@ import { executeHttpNode } from './executors/http';
 import { executeBranchNode } from './executors/branch';
 
 export async function executeRun(payload: ExecuteRunPayload): Promise<void> {
-  const { runId, playbookVersionId } = payload;
+  const { runId } = payload;
 
   // Load run and playbook
   const run = await prisma.run.findUnique({

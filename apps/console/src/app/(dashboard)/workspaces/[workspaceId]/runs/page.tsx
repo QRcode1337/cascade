@@ -7,6 +7,7 @@ import {
   formatCost,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { RunStatusPoller } from "@/components/run-status-poller";
 
 interface RunsPageProps {
   params: Promise<{ workspaceId: string }>;
@@ -25,48 +26,24 @@ const statusStyles: Record<string, string> = {
 export default async function RunsPage({ params }: RunsPageProps) {
   const { workspaceId } = await params;
 
-  const [runs, workspace, usage] = await Promise.all([
-    prisma.run.findMany({
-      where: { workspaceId },
-      include: {
-        playbookVer: {
-          select: {
-            version: true,
-            playbook: { select: { name: true } },
-          },
-        },
-        _count: { select: { steps: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-    prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: { guardrail: true },
-    }),
-    prisma.usageLog.aggregate({
-      where: {
-        workspaceId,
-        timestamp: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
+  const runs = await prisma.run.findMany({
+    where: { workspaceId },
+    include: {
+      playbookVer: {
+        select: {
+          version: true,
+          playbook: { select: { name: true } },
         },
       },
-      _sum: {
-        tokensIn: true,
-        tokensOut: true,
-        costCents: true,
-      },
-    }),
-  ]);
+      _count: { select: { steps: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
 
-  const dailyTokens = (usage._sum.tokensIn ?? 0) + (usage._sum.tokensOut ?? 0);
-  const dailyCostCents = usage._sum.costCents ?? 0;
-  const dailyTokenCap = workspace?.guardrail?.dailyTokenCap ?? 250000;
-  const dailyCostCap = workspace?.guardrail?.dailyCostCapCents ?? 1000;
-  const tokenUtilization =
-    dailyTokenCap > 0 ? Math.min(100, (dailyTokens / dailyTokenCap) * 100) : 0;
-  const costUtilization =
-    dailyCostCap > 0 ? Math.min(100, (dailyCostCents / dailyCostCap) * 100) : 0;
+  const hasActiveRuns = runs.some(
+    (run) => run.status === "PENDING" || run.status === "RUNNING",
+  );
 
   return (
     <div className="mt-6 space-y-6">
@@ -111,7 +88,10 @@ export default async function RunsPage({ params }: RunsPageProps) {
       </div>
 
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold">Recent Runs</h2>
+        <div>
+          <h2 className="text-lg font-semibold">Recent Runs</h2>
+          <RunStatusPoller shouldPoll={hasActiveRuns} />
+        </div>
       </div>
 
       {runs.length === 0 ? (

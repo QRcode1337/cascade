@@ -63,7 +63,6 @@ export function evaluateExpression(
 ): EvalResult {
   try {
     const parsed = parser.parse(expression);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = parsed.evaluate(flattenContext(context) as any);
     return { success: true, value };
   } catch (err) {
