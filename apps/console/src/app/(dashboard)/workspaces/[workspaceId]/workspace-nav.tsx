@@ -12,8 +12,8 @@ export function WorkspaceNav({ workspaceId }: WorkspaceNavProps) {
   const pathname = usePathname();
 
   const tabs = [
+    { name: "Content", href: `/workspaces/${workspaceId}` },
     { name: "Playbooks", href: `/workspaces/${workspaceId}/playbooks` },
-    { name: "Guided Flow", href: `/workspaces/${workspaceId}/guided-flow` },
     { name: "Runs", href: `/workspaces/${workspaceId}/runs` },
     { name: "Secrets", href: `/workspaces/${workspaceId}/secrets` },
     { name: "Settings", href: `/workspaces/${workspaceId}/settings` },
@@ -22,7 +22,10 @@ export function WorkspaceNav({ workspaceId }: WorkspaceNavProps) {
   return (
     <nav className="flex gap-1 border-b">
       {tabs.map((tab) => {
-        const isActive = pathname.startsWith(tab.href);
+        const isActive =
+          tab.name === "Content"
+            ? pathname === tab.href
+            : pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.name}

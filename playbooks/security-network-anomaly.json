@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "name": "Security: Network Anomaly Detection",
+    "description": "Scheduled 5-minute pipeline that fetches network logs, scores network topology with graph analysis, detects emergent threat patterns, and pages on-call ops when novel anomalies exceed threshold.",
+    "category": "security",
+    "version": "1.0.0"
+  },
+  "version": 1,
+  "entry": "trigger",
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "name": "Schedule Trigger (5 min)",
+      "triggerType": "SCHEDULE",
+      "config": {
+        "cron": "*/5 * * * *",
+        "description": "Runs every 5 minutes to sweep network logs for anomalies"
+      },
+      "next": "fetch-logs"
+    },
+    {
+      "id": "fetch-logs",
+      "type": "http",
+      "name": "Fetch Network Logs",
+      "method": "GET",
+      "url": "{{secrets.NETWORK_LOG_API_URL}}/logs/latest",
+      "headers": {
+        "Authorization": "Bearer {{secrets.NETWORK_LOG_API_KEY}}",
+        "Accept": "application/json"
+      },
+      "timeout": 15000,
+      "saveAs": "fetch-logs",
+      "next": "parse-topology"
+    },
+    {
+      "id": "parse-topology",
+      "type": "transform",
+      "name": "Parse Network Topology",
+      "expression": "{ nodes: fetch-logs.hosts || [], edges: fetch-logs.connections || [], metadata: { timestamp: fetch-logs.timestamp, source: fetch-logs.source } }",
+      "saveAs": "parse-topology",
+      "next": "score-topology"
+    },
+    {
+      "id": "score-topology",
+      "type": "graph-analyze",
+      "name": "Score Network Topology",
+      "inputs": {
+        "nodes": "{{parse-topology.nodes}}",
+        "edges": "{{parse-topology.edges}}"
+      },
+      "config": {
+        "damping": 0.85,
+        "threshold": 0.2,
+        "top_k": 20
+      },
+      "saveAs": "score-topology",
+      "next": "detect-emergence"
+    },
+    {
+      "id": "detect-emergence",
+      "type": "emergence-detect",
+      "name": "Detect Emergent Threats",
+      "inputs": {
+        "data": "{{score-topology.scores}}",
+        "context": "{{parse-topology.metadata}}"
+      },
+      "config": {
+        "iterations": 15,
+        "novelty_threshold": 0.75
+      },
+      "saveAs": "detect-emergence",
+      "next": "check-threat"
+    },
+    {
+      "id": "check-threat",
+      "type": "branch",
+      "name": "Check Threat Level",
+      "expression": "detect-emergence.is_anomalous || detect-emergence.novelty_score > 0.75"
+    },
+    {
+      "id": "analyze-threat",
+      "type": "intelligence",
+      "name": "Analyze Threat",
+      "inputs": {
+        "query": "Analyze network threat: novelty_score={{detect-emergence.novelty_score}}, patterns={{detect-emergence.patterns}}, top_nodes={{score-topology.topNodes}}",
+        "domain": "network-security"
+      },
+      "config": {
+        "depth": 6,
+        "confidence_min": 0.6,
+        "creative_mode": false
+      },
+      "saveAs": "analyze-threat",
+      "next": "format-incident"
+    },
+    {
+      "id": "format-incident",
+      "type": "llm",
+      "name": "Format Incident Report",
+      "model": "gpt-4o-mini",
+      "system": "You are a network security incident responder. Format a structured incident report from the threat intelligence provided. Include: incident ID (timestamp-based), severity (Critical/High/Medium/Low), affected hosts, attack pattern, recommended immediate actions. Use plain text for ops pager delivery.",
+      "prompt": "Threat analysis:\n{{analyze-threat.reasoning}}\n\nConfidence: {{analyze-threat.confidence}}\nNovelty score: {{detect-emergence.novelty_score}}\nComplexity: {{detect-emergence.complexity}}\nPatterns detected: {{detect-emergence.patterns}}\nTop anomalous nodes: {{score-topology.topNodes}}\nAnomalies: {{score-topology.anomalies}}\n\nFormat a concise incident report for ops.",
+      "maxOutputTokens": 768,
+      "temperature": 0.1,
+      "saveAs": "format-incident",
+      "next": "alert-ops"
+    },
+    {
+      "id": "alert-ops",
+      "type": "http",
+      "name": "Alert Ops Team",
+      "method": "POST",
+      "url": "{{secrets.OPS_ALERT_WEBHOOK_URL}}",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{secrets.OPS_ALERT_API_KEY}}"
+      },
+      "body": {
+        "severity": "high",
+        "source": "cascade-network-anomaly",
+        "incident": "{{format-incident}}",
+        "metrics": {
+          "novelty_score": "{{detect-emergence.novelty_score}}",
+          "complexity": "{{detect-emergence.complexity}}",
+          "is_anomalous": "{{detect-emergence.is_anomalous}}",
+          "top_nodes": "{{score-topology.topNodes}}"
+        },
+        "timestamp": "{{trigger.timestamp}}"
+      },
+      "timeout": 10000
+    },
+    {
+      "id": "log-status",
+      "type": "transform",
+      "name": "Log Clean Status",
+      "expression": "{ status: 'nominal', timestamp: Date.now(), novelty_score: detect-emergence.novelty_score, complexity: detect-emergence.complexity, nodes_scored: score-topology.statistics.nodeCount }",
+      "saveAs": "log-status"
+    }
+  ],
+  "edges": [
+    { "from": "trigger",          "to": "fetch-logs" },
+    { "from": "fetch-logs",       "to": "parse-topology" },
+    { "from": "parse-topology",   "to": "score-topology" },
+    { "from": "score-topology",   "to": "detect-emergence" },
+    { "from": "detect-emergence", "to": "check-threat" },
+    { "from": "check-threat",     "to": "analyze-threat", "label": "threat detected" },
+    { "from": "check-threat",     "to": "log-status",     "label": "nominal" },
+    { "from": "analyze-threat",   "to": "format-incident" },
+    { "from": "format-incident",  "to": "alert-ops" }
+  ],
+  "_branchMap": {
+    "check-threat": {
+      "onTrue":  "analyze-threat",
+      "onFalse": "log-status"
+    }
+  }
+}

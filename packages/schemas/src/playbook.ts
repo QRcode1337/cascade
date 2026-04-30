@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GraphNodeSchema, IntelligenceNodeSchema, EmergenceNodeSchema } from './nodes.js';
 
 // ============================================
 // NODE TYPES
@@ -82,6 +83,9 @@ export const NodeSchema = z.discriminatedUnion('type', [
   SlackNodeSchema,
   WaitNodeSchema,
   TransformNodeSchema,
+  GraphNodeSchema,
+  IntelligenceNodeSchema,
+  EmergenceNodeSchema,
 ]);
 
 // ============================================
@@ -139,6 +143,8 @@ export type BranchNode = z.infer<typeof BranchNodeSchema>;
 export type SlackNode = z.infer<typeof SlackNodeSchema>;
 export type WaitNode = z.infer<typeof WaitNodeSchema>;
 export type TransformNode = z.infer<typeof TransformNodeSchema>;
+// Re-export Sublinear Intelligence node types for convenience
+export type { GraphNode, IntelligenceNode, EmergenceNode } from './nodes.js';
 export type Node = z.infer<typeof NodeSchema>;
 export type PlaybookDefinition = z.infer<typeof PlaybookDefinitionSchema>;
 export type CreatePlaybook = z.infer<typeof CreatePlaybookSchema>;

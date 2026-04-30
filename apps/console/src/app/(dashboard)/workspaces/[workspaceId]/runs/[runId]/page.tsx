@@ -1,8 +1,14 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { prisma } from '@cascade/db';
-import { formatDate, formatDuration, formatTokens, formatCost } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { prisma } from "@cascade/db";
+import {
+  formatDate,
+  formatDuration,
+  formatTokens,
+  formatCost,
+} from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { RunStatusPoller } from "@/components/run-status-poller";
 
 interface RunDetailPageProps {
   params: Promise<{ workspaceId: string; runId: string }>;
@@ -31,18 +37,18 @@ async function getRun(runId: string) {
         },
       },
       steps: {
-        orderBy: { idx: 'asc' },
+        orderBy: { idx: "asc" },
       },
     },
   });
 }
 
 const statusStyles: Record<string, string> = {
-  PENDING: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  RUNNING: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  SUCCEEDED: 'bg-green-500/10 text-green-600 border-green-500/20',
-  FAILED: 'bg-red-500/10 text-red-600 border-red-500/20',
-  CANCELED: 'bg-muted text-muted-foreground border-border',
+  PENDING: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+  RUNNING: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  SUCCEEDED: "bg-green-500/10 text-green-600 border-green-500/20",
+  FAILED: "bg-red-500/10 text-red-600 border-red-500/20",
+  CANCELED: "bg-muted text-muted-foreground border-border",
 };
 
 export default async function RunDetailPage({ params }: RunDetailPageProps) {
@@ -54,10 +60,12 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
   }
 
   const playbook = run.playbookVer.playbook;
-  const durationMs = run.finishedAt && run.startedAt
-    ? new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()
-    : null;
+  const durationMs =
+    run.finishedAt && run.startedAt
+      ? new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()
+      : null;
   const totalTokens = run.tokensIn + run.tokensOut;
+  const shouldPoll = run.status === "PENDING" || run.status === "RUNNING";
 
   return (
     <div className="mt-6">
@@ -77,11 +85,17 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
             {run.id}
           </p>
         </div>
-        <span
-          className={cn('px-4 py-2 rounded-lg border', statusStyles[run.status])}
-        >
-          {run.status}
-        </span>
+        <div className="text-right">
+          <span
+            className={cn(
+              "px-4 py-2 rounded-lg border",
+              statusStyles[run.status],
+            )}
+          >
+            {run.status}
+          </span>
+          <RunStatusPoller shouldPoll={shouldPoll} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -107,9 +121,9 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">
-                {run.status === 'RUNNING'
-                  ? 'Waiting for output...'
-                  : 'No output available.'}
+                {run.status === "RUNNING" || run.status === "PENDING"
+                  ? "Waiting for output..."
+                  : "No output available."}
               </p>
             )}
           </div>
@@ -117,13 +131,18 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
           {/* Execution Steps - Generated Content */}
           {run.steps && run.steps.length > 0 && (
             <div className="space-y-6">
-              <h2 className="font-semibold text-lg">Generated Outputs ({run.steps.length})</h2>
+              <h2 className="font-semibold text-lg">
+                Generated Outputs ({run.steps.length})
+              </h2>
               {run.steps.map((step, idx) => {
                 const output = step.output as StepOutput | null;
                 const hasContent = output?.content && output.content.length > 0;
 
                 return (
-                  <div key={step.id} className="rounded-lg border bg-card overflow-hidden">
+                  <div
+                    key={step.id}
+                    className="rounded-lg border bg-card overflow-hidden"
+                  >
                     {/* Step Header */}
                     <div className="flex items-center justify-between p-4 border-b bg-muted/30">
                       <div className="flex items-center gap-3">
@@ -133,7 +152,9 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
                         <div>
                           <h3 className="font-medium">{step.name}</h3>
                           {output?.type && (
-                            <p className="text-xs text-muted-foreground">{output.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {output.type}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -145,7 +166,10 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
                         )}
                         {(output?.tokensIn || output?.tokensOut) && (
                           <span className="text-xs text-muted-foreground">
-                            {formatTokens((output.tokensIn || 0) + (output.tokensOut || 0))} tokens
+                            {formatTokens(
+                              (output.tokensIn || 0) + (output.tokensOut || 0),
+                            )}{" "}
+                            tokens
                           </span>
                         )}
                         {output?.costCents && output.costCents > 0 && (
@@ -154,7 +178,10 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
                           </span>
                         )}
                         <span
-                          className={cn('text-xs px-2 py-1 rounded-full', statusStyles[step.status])}
+                          className={cn(
+                            "text-xs px-2 py-1 rounded-full",
+                            statusStyles[step.status],
+                          )}
                         >
                           {step.status}
                         </span>
@@ -170,19 +197,40 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
                           </div>
                         </div>
                       ) : output?.note ? (
-                        <p className="text-sm text-muted-foreground italic">{output.note}</p>
-                      ) : step.status === 'RUNNING' ? (
+                        <p className="text-sm text-muted-foreground italic">
+                          {output.note}
+                        </p>
+                      ) : step.status === "RUNNING" ? (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          <svg
+                            className="w-4 h-4 animate-spin"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
                           </svg>
                           Generating...
                         </div>
-                      ) : step.status === 'PENDING' ? (
-                        <p className="text-sm text-muted-foreground">Waiting to execute...</p>
+                      ) : step.status === "PENDING" ? (
+                        <p className="text-sm text-muted-foreground">
+                          Waiting to execute...
+                        </p>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No content generated.</p>
+                        <p className="text-sm text-muted-foreground">
+                          No content generated.
+                        </p>
                       )}
                     </div>
 
@@ -236,31 +284,39 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
               <div>
                 <dt className="text-muted-foreground">Started</dt>
                 <dd className="font-medium mt-1">
-                  {run.startedAt ? formatDate(run.startedAt) : '—'}
+                  {run.startedAt ? formatDate(run.startedAt) : "—"}
                 </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Finished</dt>
                 <dd className="font-medium mt-1">
-                  {run.finishedAt ? formatDate(run.finishedAt) : '—'}
+                  {run.finishedAt ? formatDate(run.finishedAt) : "—"}
                 </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Duration</dt>
                 <dd className="font-medium mt-1">
-                  {durationMs ? formatDuration(durationMs) : run.status === 'RUNNING' ? 'In progress...' : '—'}
+                  {durationMs
+                    ? formatDuration(durationMs)
+                    : shouldPoll
+                      ? "In progress..."
+                      : "—"}
                 </dd>
               </div>
               {totalTokens > 0 && (
                 <div>
                   <dt className="text-muted-foreground">Tokens</dt>
-                  <dd className="font-medium mt-1">{formatTokens(totalTokens)}</dd>
+                  <dd className="font-medium mt-1">
+                    {formatTokens(totalTokens)}
+                  </dd>
                 </div>
               )}
               {run.costCents > 0 && (
                 <div>
                   <dt className="text-muted-foreground">Cost</dt>
-                  <dd className="font-medium mt-1">{formatCost(run.costCents)}</dd>
+                  <dd className="font-medium mt-1">
+                    {formatCost(run.costCents)}
+                  </dd>
                 </div>
               )}
             </dl>

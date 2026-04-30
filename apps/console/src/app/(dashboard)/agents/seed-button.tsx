@@ -17,7 +17,7 @@ export function SeedButton() {
         const data = await res.json();
         alert(data.error || 'Failed to seed');
       }
-    } catch (err) {
+    } catch {
       alert('Failed to seed agents');
     } finally {
       setIsLoading(false);

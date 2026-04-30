@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   description: 'Mission control for AI workflow playbooks',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.svg',
   },
 };
 

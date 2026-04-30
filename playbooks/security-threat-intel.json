@@ -1,0 +1,97 @@
+{
+  "metadata": {
+    "name": "Security: Threat Intelligence Deep-Dive",
+    "description": "On-demand threat intelligence pipeline. Accepts a free-form query and optional domain hint, runs deep multi-hop reasoning with creative mode enabled, synthesizes a structured report via GPT-4o, and delivers it to a configurable endpoint.",
+    "category": "security",
+    "version": "1.0.0"
+  },
+  "version": 1,
+  "entry": "trigger",
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "name": "Manual Trigger",
+      "triggerType": "MANUAL",
+      "config": {
+        "inputs": {
+          "query": {
+            "type": "string",
+            "required": true,
+            "description": "The threat intelligence query to investigate"
+          },
+          "domain": {
+            "type": "string",
+            "required": false,
+            "description": "Optional knowledge domain hint (e.g. ransomware, apt, supply-chain)"
+          }
+        }
+      },
+      "next": "deep-reason"
+    },
+    {
+      "id": "deep-reason",
+      "type": "intelligence",
+      "name": "Deep Threat Reasoning",
+      "inputs": {
+        "query": "{{input.query}}",
+        "domain": "{{input.domain}}"
+      },
+      "config": {
+        "depth": 7,
+        "confidence_min": 0.5,
+        "creative_mode": true
+      },
+      "saveAs": "deep-reason",
+      "next": "synthesize-report"
+    },
+    {
+      "id": "synthesize-report",
+      "type": "llm",
+      "name": "Synthesize Threat Report",
+      "model": "gpt-4o",
+      "system": "You are a senior threat intelligence analyst at a Tier-1 SOC. Your task is to synthesize raw intelligence reasoning into a structured, executive-ready threat report. The report must follow this structure:\n\n# Threat Intelligence Report\n## Executive Summary (2-3 sentences)\n## Threat Profile\n- Confidence Level: [HIGH/MEDIUM/LOW]\n- Primary Domain(s):\n- Key Indicators:\n## Deep Analysis\n[Detailed findings from reasoning chains]\n## Knowledge Graph Insights\n[Triples and analogies that illuminate the threat]\n## Recommended Actions\n1. Immediate (0-24h)\n2. Short-term (1-7 days)\n3. Strategic (30+ days)\n## Caveats & Uncertainty\n[Note gaps in confidence or data]\n\nBe precise, avoid speculation beyond the evidence, and flag low-confidence assertions explicitly.",
+      "prompt": "Original query: {{input.query}}\nDomain: {{input.domain}}\n\nIntelligence reasoning:\n{{deep-reason.reasoning}}\n\nConfidence: {{deep-reason.confidence}}\nDomains activated: {{deep-reason.domains}}\nKnowledge triples: {{deep-reason.triples}}\nAnalogies: {{deep-reason.analogies}}\n\nSynthesize the above into a complete threat intelligence report.",
+      "maxOutputTokens": 4096,
+      "temperature": 0.3,
+      "saveAs": "synthesize-report",
+      "next": "add-metadata"
+    },
+    {
+      "id": "add-metadata",
+      "type": "transform",
+      "name": "Add Report Metadata",
+      "expression": "{ report: synthesize-report, meta: { query: input.query, domain: input.domain || 'general', confidence: deep-reason.confidence, domains: deep-reason.domains, depth: 7, generated_at: Date.now(), source: 'cascade-threat-intel' } }",
+      "saveAs": "add-metadata",
+      "next": "deliver-report"
+    },
+    {
+      "id": "deliver-report",
+      "type": "http",
+      "name": "Deliver Threat Report",
+      "method": "POST",
+      "url": "{{secrets.THREAT_INTEL_DELIVERY_URL}}",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{secrets.THREAT_INTEL_API_KEY}}",
+        "X-Cascade-Source": "threat-intel-pipeline"
+      },
+      "body": {
+        "report": "{{add-metadata.report}}",
+        "metadata": "{{add-metadata.meta}}",
+        "raw_intelligence": {
+          "reasoning": "{{deep-reason.reasoning}}",
+          "triples": "{{deep-reason.triples}}",
+          "analogies": "{{deep-reason.analogies}}"
+        }
+      },
+      "timeout": 15000
+    }
+  ],
+  "edges": [
+    { "from": "trigger",          "to": "deep-reason" },
+    { "from": "deep-reason",      "to": "synthesize-report" },
+    { "from": "synthesize-report","to": "add-metadata" },
+    { "from": "add-metadata",     "to": "deliver-report" }
+  ]
+}

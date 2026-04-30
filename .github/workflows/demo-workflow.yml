@@ -1,0 +1,60 @@
+name: Demo Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      audience:
+        description: "Who is this demo for?"
+        required: true
+        default: "potential-users"
+      run_tests:
+        description: "Run lint/typecheck/tests"
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  demo:
+    name: Run CASCADE demo checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Show demo context
+        run: |
+          echo "Running demo workflow for: ${{ inputs.audience }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+
+      - name: Lint
+        if: inputs.run_tests
+        run: pnpm lint
+
+      - name: Typecheck
+        if: inputs.run_tests
+        run: pnpm typecheck
+
+      - name: Test
+        if: inputs.run_tests
+        run: pnpm test
