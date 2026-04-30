@@ -45,7 +45,6 @@ async function getDailyUsageForWorkspace(workspaceId: string) {
 }
 
 export async function executeRun(runId: string, logger: Logger) {
-  // Load run with related data
   const run = await prisma.run.findUnique({
     where: { id: runId },
     include: {
@@ -88,8 +87,10 @@ export async function executeRun(runId: string, logger: Logger) {
   // Enforce per-workspace rate limit before consuming any resources
   checkRateLimit(run.workspaceId);
 
-  // Initialize execution context
   let context = createContext(run.input as Record<string, unknown>);
+  const resolvedSecrets = await loadWorkspaceSecrets(run.workspaceId, run.id);
+  context = mergeStepOutput(context, "secrets", resolvedSecrets);
+
   context = addRuntimeMetadata(context, {
     runId,
     workspaceId: run.workspaceId,
@@ -98,7 +99,6 @@ export async function executeRun(runId: string, logger: Logger) {
     currentStep: 0,
   });
 
-  // Mark run as running
   await prisma.run.update({
     where: { id: runId },
     data: { status: "RUNNING", startedAt: new Date() },
@@ -122,7 +122,8 @@ export async function executeRun(runId: string, logger: Logger) {
         "Executing node",
       );
 
-      // Check guardrails before execution
+      const dailyUsage = await getDailyUsage(run.workspaceId);
+
       if (run.workspace.guardrail) {
         const dailyUsage = await getDailyUsageForWorkspace(run.workspaceId);
         const guardrailCheck = checkGuardrails(
@@ -146,7 +147,8 @@ export async function executeRun(runId: string, logger: Logger) {
         }
       }
 
-      // Create step record
+      enforceConsentPolicy(node, context);
+
       const step = await prisma.runStep.create({
         data: {
           runId,
@@ -182,7 +184,6 @@ export async function executeRun(runId: string, logger: Logger) {
         totalTokensOut += result.tokensOut || 0;
         totalCostCents += result.cost || 0;
 
-        // Update step with success
         await prisma.runStep.update({
           where: { id: step.id },
           data: {
@@ -195,6 +196,33 @@ export async function executeRun(runId: string, logger: Logger) {
           },
         });
 
+        await prisma.usageLog.create({
+          data: {
+            workspaceId: run.workspaceId,
+            runId,
+            stepId: step.id,
+            tokensIn: result.tokensIn || 0,
+            tokensOut: result.tokensOut || 0,
+            costCents: result.cost || 0,
+            timestamp: new Date(),
+          },
+        });
+
+        logger.info({ runId, stepId: step.id, durationMs }, "Step succeeded");
+
+        if (node.type === "llm" && node.saveAs) {
+          context = mergeStepOutput(context, node.saveAs, result.output);
+        } else if (node.type === "transform" && node.saveAs) {
+          context = mergeStepOutput(context, node.saveAs, result.output);
+        } else if (node.type === "http") {
+          context = mergeStepOutput(
+            context,
+            `http_${currentNodeId}`,
+            result.output,
+          );
+        }
+
+        currentNodeId = getNextNodeId(node, context, evaluateCondition);
         // Merge output into context
         if (node.type === "llm" && node.saveAs) {
           context = mergeStepOutput(
@@ -244,7 +272,6 @@ export async function executeRun(runId: string, logger: Logger) {
       }
     }
 
-    // Mark run as succeeded
     await prisma.run.update({
       where: { id: runId },
       data: {
@@ -375,11 +402,29 @@ async function executeNode(
           : undefined,
         body: node.body ? renderObjectTemplates(node.body, context) : undefined,
       };
+
+      const destination = safeDestinationFromUrl(renderedNode.url);
+      await writeRunAudit({
+        ...auditContext,
+        actor: "worker",
+        action: "connector.http.request",
+        channel: "http",
+        destination,
+        metadata: { method: renderedNode.method },
+      });
+
       return executeHttpNode(renderedNode);
     }
 
     case "slack": {
       const message = renderTemplate(node.message, context);
+      await writeRunAudit({
+        ...auditContext,
+        actor: "worker",
+        action: "connector.slack.post_message",
+        channel: "slack",
+        destination: node.channel,
+      });
       return executeSlackNode({ ...node, message });
     }
 

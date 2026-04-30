@@ -46,7 +46,47 @@ export default async function RunsPage({ params }: RunsPageProps) {
   );
 
   return (
-    <div className="mt-6">
+    <div className="mt-6 space-y-6">
+      <div className="rounded-lg border bg-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">Daily Cap Utilization</h3>
+          <span className="text-xs text-muted-foreground">
+            Resets at local midnight
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tokens</span>
+              <span className="font-medium">
+                {formatTokens(dailyTokens)} / {formatTokens(dailyTokenCap)}
+              </span>
+            </div>
+            <div className="h-2 rounded bg-muted overflow-hidden">
+              <div
+                className="h-full bg-blue-500"
+                style={{ width: `${tokenUtilization}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Cost</span>
+              <span className="font-medium">
+                {formatCost(dailyCostCents)} / {formatCost(dailyCostCap)}
+              </span>
+            </div>
+            <div className="h-2 rounded bg-muted overflow-hidden">
+              <div
+                className="h-full bg-emerald-500"
+                style={{ width: `${costUtilization}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold">Recent Runs</h2>
