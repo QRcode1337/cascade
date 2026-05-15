@@ -54,7 +54,7 @@ export async function executeRun(runId: string, logger: Logger) {
         },
       },
       workspace: {
-        include: { guardrail: true },
+        include: { guardrail: true, secrets: true },
       },
     },
   });
@@ -467,6 +467,25 @@ async function executeNode(
     default:
       throw new Error(`Unknown node type: ${(node as Node).type}`);
   }
+}
+
+function resolveSecretValue(
+  workspaceSecrets: Array<{ key: string; cipherText: Buffer; iv: Buffer; authTag: Buffer }>,
+  secretKey: string
+): string {
+  const secret = workspaceSecrets.find((item) => item.key === secretKey);
+  if (!secret) {
+    throw new Error(`Secret not found: ${secretKey}`);
+  }
+
+  return decryptSecret(secret.cipherText, secret.iv, secret.authTag);
+}
+
+function renderMedia(
+  media: Array<{ url: string; mimeType?: string; title?: string; altText?: string }>,
+  context: Record<string, unknown>
+): Array<{ url: string; mimeType?: string; title?: string; altText?: string }> {
+  return media.map((item) => renderObjectTemplates(item, context));
 }
 
 function parseDuration(duration: string): number {
