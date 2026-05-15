@@ -84,11 +84,6 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    // Ensure new columns exist (migration might not have run)
-    await prisma.$executeRawUnsafe(`ALTER TABLE "Playbook" ADD COLUMN IF NOT EXISTS "agentSlug" TEXT`).catch(() => {});
-    await prisma.$executeRawUnsafe(`ALTER TABLE "Playbook" ADD COLUMN IF NOT EXISTS "templateId" TEXT`).catch(() => {});
-    await prisma.$executeRawUnsafe(`ALTER TABLE "Playbook" ADD COLUMN IF NOT EXISTS "lane" TEXT`).catch(() => {});
-
     // Build workflow definition based on agent if provided
     interface WorkflowDefinition {
       agent?: { slug: string; name: string; mission: string; systemPrompt?: string };
@@ -106,23 +101,19 @@ export async function POST(request: Request, context: RouteContext) {
 
     // If agent is provided, fetch agent details and build workflow
     if (agentSlug) {
-      interface AgentRecord {
-        slug: string;
-        name: string;
-        mission: string;
-        systemPrompt: string | null;
-        playbooks: string[];
-        outputs: string[];
-        lane: string | null;
-      }
-      const agents = await prisma.$queryRaw<AgentRecord[]>`
-        SELECT slug, name, mission, "systemPrompt", playbooks, outputs, lane
-        FROM "Agent"
-        WHERE slug = ${agentSlug}
-        LIMIT 1
-      `.catch(() => []);
-
-      const agent = agents[0];
+      const agent = await prisma.agent
+        .findUnique({
+          where: { slug: agentSlug },
+          select: {
+            slug: true,
+            name: true,
+            mission: true,
+            systemPrompt: true,
+            outputs: true,
+            lane: true,
+          },
+        })
+        .catch(() => null);
       if (agent) {
         // Build workflow steps based on agent outputs
         const steps = agent.outputs.map((output, idx) => ({
@@ -174,6 +165,8 @@ export async function POST(request: Request, context: RouteContext) {
         name,
         description,
         workspaceId,
+        agentSlug: agentSlug || null,
+        lane: lane || null,
         versions: {
           create: {
             version: 1,
@@ -185,13 +178,6 @@ export async function POST(request: Request, context: RouteContext) {
         versions: true,
       },
     });
-
-    // Update with agent and lane if provided (columns might be new)
-    if (agentSlug || lane) {
-      await prisma.$executeRawUnsafe(`
-        UPDATE "Playbook" SET "agentSlug" = $1, "lane" = $2 WHERE id = $3
-      `, agentSlug || null, lane || null, playbook.id).catch(() => {});
-    }
 
     return NextResponse.json(playbook, { status: 201 });
   } catch (error) {

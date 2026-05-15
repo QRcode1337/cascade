@@ -1,5 +1,5 @@
-import type { Logger } from 'pino';
-import { prisma, Prisma } from '@cascade/db';
+import type { Logger } from "pino";
+import { prisma, Prisma } from "@cascade/db";
 import {
   parsePlaybook,
   getNextNodeId,
@@ -11,17 +11,40 @@ import {
   renderObjectTemplates,
   evaluateCondition,
   checkGuardrails,
-} from '@cascade/runtime';
-import type { Node } from '@cascade/schemas';
-import { executeLlmNode } from '../connectors/openai.js';
-import { executeHttpNode } from '../connectors/http.js';
-import { executeSlackNode } from '../connectors/slack.js';
-import { publishToLinkedIn } from '../connectors/social-linkedin.js';
-import { publishToMeta } from '../connectors/social-meta.js';
-import { decryptSecret } from '../lib/secrets.js';
+} from "@cascade/runtime";
+import type { Node, PlaybookDefinition } from "@cascade/schemas";
+import { executeLlmNode } from "../connectors/openai.js";
+import { executeHttpNode } from "../connectors/http.js";
+import { executeSlackNode } from "../connectors/slack.js";
+import { executeGraphNode } from "../executors/graph.js";
+import { executeIntelligenceNode } from "../executors/intelligence.js";
+import { executeEmergenceNode } from "../executors/emergence.js";
+import { checkRateLimit } from "../middleware/rate-limiter.js";
+import { sendGuardrailBreachAlert } from "../lib/guardrail-alert.js";
+
+const RETRYABLE_NODE_TYPES = new Set(["llm", "http"]);
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getDailyUsageForWorkspace(workspaceId: string) {
+  const startOfDayUtc = new Date();
+  startOfDayUtc.setUTCHours(0, 0, 0, 0);
+  const result = await prisma.usageLog.aggregate({
+    where: { workspaceId, timestamp: { gte: startOfDayUtc } },
+    _sum: { tokensIn: true, tokensOut: true, costCents: true },
+  });
+  return {
+    tokensIn: result._sum.tokensIn ?? 0,
+    tokensOut: result._sum.tokensOut ?? 0,
+    costCents: result._sum.costCents ?? 0,
+  };
+}
 
 export async function executeRun(runId: string, logger: Logger) {
-  // Load run with related data
   const run = await prisma.run.findUnique({
     where: { id: runId },
     include: {
@@ -45,18 +68,29 @@ export async function executeRun(runId: string, logger: Logger) {
     throw new Error(`No playbook version found for run: ${runId}`);
   }
 
-  // Parse playbook definition
-  const parseResult = parsePlaybook(playbookVersion.definition);
+  // Parse playbook definition (support legacy console workflow shape)
+  const normalizedDefinition = normalizePlaybookDefinition(
+    playbookVersion.definition,
+  );
+  const parseResult = parsePlaybook(normalizedDefinition);
   if (!parseResult.success) {
-    await markRunFailed(runId, `Invalid playbook: ${parseResult.errors.join(', ')}`);
-    throw new Error(`Invalid playbook: ${parseResult.errors.join(', ')}`);
+    const errors = (parseResult.errors || [])
+      .map((err) => `${err.path}: ${err.message}`)
+      .join(", ");
+    await markRunFailed(runId, `Invalid playbook: ${errors}`);
+    throw new Error(`Invalid playbook: ${errors}`);
   }
 
   const playbook = parseResult.data!;
-  const nodeMap = buildNodeMap(playbook.nodes);
+  const nodeMap = buildNodeMap(playbook);
 
-  // Initialize execution context
+  // Enforce per-workspace rate limit before consuming any resources
+  checkRateLimit(run.workspaceId);
+
   let context = createContext(run.input as Record<string, unknown>);
+  const resolvedSecrets = await loadWorkspaceSecrets(run.workspaceId, run.id);
+  context = mergeStepOutput(context, "secrets", resolvedSecrets);
+
   context = addRuntimeMetadata(context, {
     runId,
     workspaceId: run.workspaceId,
@@ -65,13 +99,12 @@ export async function executeRun(runId: string, logger: Logger) {
     currentStep: 0,
   });
 
-  // Mark run as running
   await prisma.run.update({
     where: { id: runId },
-    data: { status: 'RUNNING', startedAt: new Date() },
+    data: { status: "RUNNING", startedAt: new Date() },
   });
 
-  let currentNodeId: string | null = playbook.entryNode;
+  let currentNodeId: string | null = playbook.entry;
   let stepIndex = 0;
   let totalTokensIn = 0;
   let totalTokensOut = 0;
@@ -84,23 +117,38 @@ export async function executeRun(runId: string, logger: Logger) {
         throw new Error(`Node not found: ${currentNodeId}`);
       }
 
-      logger.info({ nodeId: currentNodeId, nodeType: node.type, step: stepIndex }, 'Executing node');
+      logger.info(
+        { nodeId: currentNodeId, nodeType: node.type, step: stepIndex },
+        "Executing node",
+      );
 
-      // Check guardrails before execution
+      const dailyUsage = await getDailyUsage(run.workspaceId);
+
       if (run.workspace.guardrail) {
-        const guardrailCheck = checkGuardrails(run.workspace.guardrail, {
-          runTokens: totalTokensIn + totalTokensOut,
-          dailyTokens: 0, // TODO: Calculate from UsageLog
-          runCostCents: totalCostCents,
-          dailyCostCents: 0,
-        });
-
+        const dailyUsage = await getDailyUsageForWorkspace(run.workspaceId);
+        const guardrailCheck = checkGuardrails(
+          run.workspace.guardrail,
+          { tokensIn: totalTokensIn, tokensOut: totalTokensOut, costCents: totalCostCents },
+          dailyUsage,
+          0,
+        );
         if (!guardrailCheck.allowed) {
+          // Fire-and-forget alert — must not delay or suppress the breach error.
+          void sendGuardrailBreachAlert(
+            {
+              workspaceId: run.workspaceId,
+              workspaceName: run.workspace.name,
+              runId,
+              reason: guardrailCheck.reason ?? 'limit exceeded',
+            },
+            logger,
+          );
           throw new Error(`Guardrail exceeded: ${guardrailCheck.reason}`);
         }
       }
 
-      // Create step record
+      enforceConsentPolicy(node, context);
+
       const step = await prisma.runStep.create({
         data: {
           runId,
@@ -108,25 +156,38 @@ export async function executeRun(runId: string, logger: Logger) {
           nodeId: currentNodeId,
           name: node.name,
           kind: node.type,
-          status: 'RUNNING',
+          status: "RUNNING",
           input: context as unknown as Prisma.JsonObject,
           idempotencyKey: `${runId}-${currentNodeId}-${stepIndex}`,
         },
       });
 
       try {
-        // Execute node based on type
-        const result = await executeNode(node, context, logger, run.workspace.secrets);
+        // Execute node with retry for LLM and HTTP steps
+        const isRetryable = RETRYABLE_NODE_TYPES.has(node.type);
+        let result!: NodeResult;
+        for (let attempt = 1; attempt <= (isRetryable ? MAX_RETRIES : 1); attempt++) {
+          try {
+            result = await executeNode(node, context, logger);
+            break;
+          } catch (err) {
+            const isLast = attempt === MAX_RETRIES || !isRetryable;
+            if (isLast) throw err;
+            const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+            logger.warn({ nodeId: currentNodeId, attempt, delayMs }, 'Step failed, retrying');
+            await prisma.runStep.update({ where: { id: step.id }, data: { retryCount: attempt } });
+            await sleep(delayMs);
+          }
+        }
 
         totalTokensIn += result.tokensIn || 0;
         totalTokensOut += result.tokensOut || 0;
         totalCostCents += result.cost || 0;
 
-        // Update step with success
         await prisma.runStep.update({
           where: { id: step.id },
           data: {
-            status: 'SUCCEEDED',
+            status: "SUCCEEDED",
             output: result.output as Prisma.JsonObject,
             tokensIn: result.tokensIn || 0,
             tokensOut: result.tokensOut || 0,
@@ -135,29 +196,73 @@ export async function executeRun(runId: string, logger: Logger) {
           },
         });
 
+        await prisma.usageLog.create({
+          data: {
+            workspaceId: run.workspaceId,
+            runId,
+            stepId: step.id,
+            tokensIn: result.tokensIn || 0,
+            tokensOut: result.tokensOut || 0,
+            costCents: result.cost || 0,
+            timestamp: new Date(),
+          },
+        });
+
+        logger.info({ runId, stepId: step.id, durationMs }, "Step succeeded");
+
+        if (node.type === "llm" && node.saveAs) {
+          context = mergeStepOutput(context, node.saveAs, result.output);
+        } else if (node.type === "transform" && node.saveAs) {
+          context = mergeStepOutput(context, node.saveAs, result.output);
+        } else if (node.type === "http") {
+          context = mergeStepOutput(
+            context,
+            `http_${currentNodeId}`,
+            result.output,
+          );
+        }
+
+        currentNodeId = getNextNodeId(node, context, evaluateCondition);
         // Merge output into context
-        if (node.type === 'llm' && node.saveAs) {
-          context = mergeStepOutput(context, node.saveAs, result.output);
-        } else if (node.type === 'transform' && node.saveAs) {
-          context = mergeStepOutput(context, node.saveAs, result.output);
-        } else if (node.type === 'social_schedule' && node.saveAs) {
-          context = mergeStepOutput(context, node.saveAs, result.output);
-        } else if (node.type === 'social_publish' && node.saveAs) {
-          context = mergeStepOutput(context, node.saveAs, result.output);
-        } else if (node.type === 'http') {
-          context = mergeStepOutput(context, `http_${currentNodeId}`, result.output);
+        if (node.type === "llm" && node.saveAs) {
+          context = mergeStepOutput(
+            context,
+            node.id,
+            node.saveAs,
+            result.output,
+          );
+        } else if (node.type === "transform" && node.saveAs) {
+          context = mergeStepOutput(
+            context,
+            node.id,
+            node.saveAs,
+            result.output,
+          );
+        } else if (node.type === "http") {
+          context = mergeStepOutput(context, node.id, undefined, result.output);
+        } else if (node.type === "graph-analyze" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        } else if (node.type === "intelligence" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
+        } else if (node.type === "emergence-detect" && node.saveAs) {
+          context = mergeStepOutput(context, node.id, node.saveAs, result.output);
         }
 
         // Determine next node
-        currentNodeId = getNextNodeId(node, context, evaluateCondition);
+        const branchResult =
+          node.type === "branch"
+            ? evaluateCondition(node.expression, context)
+            : undefined;
+        currentNodeId = getNextNodeId(node, branchResult);
         stepIndex++;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
 
         await prisma.runStep.update({
           where: { id: step.id },
           data: {
-            status: 'FAILED',
+            status: "FAILED",
             error: errorMessage,
             finishedAt: new Date(),
           },
@@ -167,11 +272,10 @@ export async function executeRun(runId: string, logger: Logger) {
       }
     }
 
-    // Mark run as succeeded
     await prisma.run.update({
       where: { id: runId },
       data: {
-        status: 'SUCCEEDED',
+        status: "SUCCEEDED",
         output: context as unknown as Prisma.JsonObject,
         tokensIn: totalTokensIn,
         tokensOut: totalTokensOut,
@@ -180,7 +284,10 @@ export async function executeRun(runId: string, logger: Logger) {
       },
     });
   } catch (error) {
-    await markRunFailed(runId, error instanceof Error ? error.message : 'Unknown error');
+    await markRunFailed(
+      runId,
+      error instanceof Error ? error.message : "Unknown error",
+    );
     throw error;
   }
 }
@@ -189,11 +296,85 @@ async function markRunFailed(runId: string, error: string) {
   await prisma.run.update({
     where: { id: runId },
     data: {
-      status: 'FAILED',
+      status: "FAILED",
       error,
       finishedAt: new Date(),
     },
   });
+}
+
+interface LegacyWorkflowStep {
+  id: string;
+  name?: string;
+  description?: string;
+  config?: {
+    outputType?: string;
+    systemPrompt?: string | null;
+  };
+}
+
+interface LegacyWorkflowDefinition {
+  agent?: {
+    name?: string;
+    mission?: string;
+    systemPrompt?: string;
+  };
+  steps?: LegacyWorkflowStep[];
+}
+
+function normalizePlaybookDefinition(definition: unknown): unknown {
+  const parsed = parsePlaybook(definition);
+  if (parsed.success) {
+    return definition;
+  }
+
+  if (!isLegacyWorkflow(definition) || !definition.steps?.length) {
+    return definition;
+  }
+
+  const nodes: PlaybookDefinition["nodes"] = definition.steps.map(
+    (step, idx) => {
+      const isLast = idx === definition.steps!.length - 1;
+      const outputType =
+        step.config?.outputType || step.description || `Output ${idx + 1}`;
+
+      return {
+        id: step.id || `step_${idx + 1}`,
+        type: "llm",
+        name: step.name || `Step ${idx + 1}`,
+        model: "gpt-4o",
+        system:
+          step.config?.systemPrompt ||
+          definition.agent?.systemPrompt ||
+          undefined,
+        prompt: [
+          definition.agent?.mission || "Generate a professional output.",
+          `Output requested: ${outputType}`,
+          "Use available context from prior steps and inputs when relevant.",
+        ].join("\n"),
+        maxOutputTokens: 2048,
+        temperature: 0.7,
+        saveAs: step.id || `step_${idx + 1}`,
+        next: isLast
+          ? undefined
+          : definition.steps![idx + 1]!.id || `step_${idx + 2}`,
+      };
+    },
+  );
+
+  return {
+    version: 1,
+    entry: nodes[0]?.id,
+    nodes,
+  } satisfies PlaybookDefinition;
+}
+
+function isLegacyWorkflow(value: unknown): value is LegacyWorkflowDefinition {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Array.isArray((value as LegacyWorkflowDefinition).steps)
+  );
 }
 
 interface NodeResult {
@@ -207,150 +388,80 @@ async function executeNode(
   node: Node,
   context: Record<string, unknown>,
   logger: Logger,
-  workspaceSecrets: Array<{ key: string; cipherText: Buffer; iv: Buffer; authTag: Buffer }>
 ): Promise<NodeResult> {
   switch (node.type) {
-    case 'llm':
+    case "llm":
       return executeLlmNode(node, context);
 
-    case 'http': {
+    case "http": {
       const renderedNode = {
         ...node,
         url: renderTemplate(node.url, context),
-        headers: node.headers ? renderObjectTemplates(node.headers, context) : undefined,
+        headers: node.headers
+          ? renderObjectTemplates(node.headers, context)
+          : undefined,
         body: node.body ? renderObjectTemplates(node.body, context) : undefined,
       };
+
+      const destination = safeDestinationFromUrl(renderedNode.url);
+      await writeRunAudit({
+        ...auditContext,
+        actor: "worker",
+        action: "connector.http.request",
+        channel: "http",
+        destination,
+        metadata: { method: renderedNode.method },
+      });
+
       return executeHttpNode(renderedNode);
     }
 
-    case 'slack': {
+    case "slack": {
       const message = renderTemplate(node.message, context);
+      await writeRunAudit({
+        ...auditContext,
+        actor: "worker",
+        action: "connector.slack.post_message",
+        channel: "slack",
+        destination: node.channel,
+      });
       return executeSlackNode({ ...node, message });
     }
 
-    case 'wait': {
+    case "wait": {
       const ms = parseDuration(node.duration);
-      logger.info({ duration: node.duration, ms }, 'Waiting');
+      logger.info({ duration: node.duration, ms }, "Waiting");
       await new Promise((resolve) => setTimeout(resolve, ms));
       return { output: { waited: ms } };
     }
 
-    case 'social_schedule': {
-      const content = renderTemplate(node.content, context);
-      const media = renderMedia(node.media, context);
-      return {
-        output: {
-          mode: 'scheduled',
-          channel: node.channel,
-          publishAt: renderTemplate(node.publishAt, context),
-          timezone: node.timezone,
-          content,
-          media,
-        },
-      };
-    }
-
-    case 'social_publish': {
-      const content = renderTemplate(node.content, context);
-      const media = renderMedia(node.media, context);
-
-      try {
-        if (node.channel === 'linkedin') {
-          const credentialRefs = node.credentials?.linkedin;
-          if (!credentialRefs) {
-            throw new Error('Missing LinkedIn credential references on social_publish node.');
-          }
-
-          const accessToken = resolveSecretValue(workspaceSecrets, credentialRefs.accessToken.secretKey);
-          const authorUrn = resolveSecretValue(workspaceSecrets, credentialRefs.authorUrn.secretKey);
-
-          const publishResult = await publishToLinkedIn({
-            accessToken,
-            authorUrn,
-            content,
-            media,
-          });
-
-          if (!publishResult.ok) {
-            throw new Error(`LinkedIn publish failed with status ${publishResult.status}`);
-          }
-
-          return {
-            output: {
-              mode: 'published',
-              channel: node.channel,
-              postId: publishResult.postId,
-              status: publishResult.status,
-              providerResponse: publishResult.body,
-              content,
-              media,
-            },
-          };
-        }
-
-        if (node.channel === 'meta') {
-          const credentialRefs = node.credentials?.meta;
-          if (!credentialRefs) {
-            throw new Error('Missing Meta credential references on social_publish node.');
-          }
-
-          const accessToken = resolveSecretValue(workspaceSecrets, credentialRefs.accessToken.secretKey);
-          const pageId = resolveSecretValue(workspaceSecrets, credentialRefs.pageId.secretKey);
-
-          await publishToMeta({
-            accessToken,
-            pageId,
-            content,
-            media,
-          });
-
-          return {
-            output: {
-              mode: 'published',
-              channel: node.channel,
-              content,
-              media,
-            },
-          };
-        }
-
-        throw new Error(`Unsupported social channel: ${node.channel}`);
-      } catch (error) {
-        if (node.fallbackMode !== 'manual_export') {
-          throw error;
-        }
-
-        const reason = error instanceof Error ? error.message : 'Unknown publish error';
-        logger.warn({ nodeId: node.id, reason }, 'Falling back to manual social export mode');
-
-        return {
-          output: {
-            mode: 'manual_export',
-            channel: node.channel,
-            reason,
-            content,
-            media,
-            metadata: {
-              generatedAt: new Date().toISOString(),
-              instructions: 'Copy content and upload referenced media assets in your social channel UI.',
-            },
-          },
-        };
-      }
-    }
-
-    case 'branch':
+    case "branch":
       // Branch evaluation happens in getNextNodeId
       return { output: { evaluated: true } };
 
-    case 'transform': {
+    case "transform": {
       // Transform uses expression evaluation (handled in runtime)
-      const { evaluateExpression } = await import('@cascade/runtime');
+      const { evaluateExpression } = await import("@cascade/runtime");
       const result = evaluateExpression(node.expression, context);
       if (!result.success) {
         throw new Error(`Transform failed: ${result.error}`);
       }
       return { output: result.value };
+    }
+
+    case "graph-analyze": {
+      const output = await executeGraphNode(node, context);
+      return { output };
+    }
+
+    case "intelligence": {
+      const output = await executeIntelligenceNode(node, context);
+      return { output };
+    }
+
+    case "emergence-detect": {
+      const output = await executeEmergenceNode(node, context);
+      return { output };
     }
 
     default:
@@ -380,8 +491,6 @@ function renderMedia(
 function parseDuration(duration: string): number {
   const match = duration.match(/^(\d+)(s|m)$/);
   if (!match) throw new Error(`Invalid duration: ${duration}`);
-  const value = match[1];
-  const unit = match[2];
-  if (!value || !unit) throw new Error(`Invalid duration: ${duration}`);
-  return parseInt(value, 10) * (unit === 'm' ? 60000 : 1000);
+  const [, value, unit] = match;
+  return parseInt(value, 10) * (unit === "m" ? 60000 : 1000);
 }
